@@ -85,33 +85,8 @@ The system uses two parallel models whose probability outputs are combined:
 
 ---
 
-## Project Structure
 
-​```
-STRESS DETECTION/
-├── app/
-│   └── app.py                    # Streamlit web app (6 pages)
-├── notebooks/
-│   ├── 01_data_loading.py        # WESAD loading + sliding windows
-│   ├── 02_feature_extraction.py  # 34 physiological features
-│   ├── 03_visualization.py       # Data visualizations
-│   ├── 04_model_training.py      # SVM, XGBoost, MLP training
-│   ├── 05_clustering.py          # K-Means, PCA, t-SNE
-│   ├── 06_face_preprocessing.py  # FER2013 preprocessing
-│   ├── 07_train_cnn.py           # MobileNetV2 training
-│   ├── 07b_retrain_cnn.py        # MobileNetV2 fine-tuning
-│   └── 08_fusion.py              # Multimodal fusion
-├── models/
-│   ├── best_model_XGBoost.pkl
-│   ├── best_cnn_model.pth
-│   └── fusion_config.pkl
-├── data/processed/
-│   ├── features.csv              # 1049 x 34 features
-│   └── plots/                   # 18 visualization PNGs
-├── requirements.txt
-├── .gitignore
-└── README.md
-​```## Project Structure
+## Project Structure
 
     app/
         app.py                     Streamlit web application (6 pages)
