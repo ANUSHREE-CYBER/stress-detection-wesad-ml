@@ -22,19 +22,18 @@ The system is deployed as an interactive **Streamlit web application** with 6 fu
 ---
 
 ## Architecture
-ECG / EDA / EMG / Respiration signals
-|
-34 features extracted
-(HRV, EDA stats, Resp stats, EMG stats)
-|
-XGBoost Classifier ─────────────────┐
-Accuracy: 97.14%                    │  weight = 0.60
-├──► Weighted Fusion ──► Final Stress Score
-Face Image (48x48 grayscale)        │  weight = 0.40
-|                            │
-MobileNetV2 CNN ────────────────────┘
-Accuracy: 63.30%
----
+
+​```
+ECG / EDA / EMG / Respiration
+           |
+   34 features extracted
+           |
+    XGBoost (97.14%) ─── weight 0.60 ──┐
+                                        ├──► Final Stress Score
+    MobileNetV2 (63.30%) ─ weight 0.40 ─┘
+           |
+    Face Image (48x48 grayscale)
+​```
 
 ## Datasets
 
@@ -81,40 +80,32 @@ Accuracy: 63.30%
 ---
 
 ## Project Structure
+
+​```
 STRESS DETECTION/
-|
-|-- app/
-|   |-- app.py                     # Streamlit web application (6 pages)
-|   |-- app_phase1_backup.py       # Backup of Phase 1 app
-|
-|-- notebooks/
-|   |-- 01_data_loading.py         # WESAD data loading + sliding windows
-|   |-- 02_feature_extraction.py   # 34 physiological feature extraction
-|   |-- 03_visualization.py        # Data visualization (10 plots)
-|   |-- 04_model_training.py       # SVM, XGBoost, MLP training + evaluation
-|   |-- 05_clustering.py           # K-Means, PCA, t-SNE unsupervised analysis
-|   |-- 06_face_preprocessing.py   # FER2013 loading + label mapping
-|   |-- 07_train_cnn.py            # MobileNetV2 initial training
-|   |-- 07b_retrain_cnn.py         # MobileNetV2 fine-tuning
-|   |-- 08_fusion.py               # Multimodal fusion analysis
-|
-|-- models/                        # Saved model files (auto-generated)
-|   |-- best_model_XGBoost.pkl
-|   |-- best_cnn_model.pth
-|   |-- fusion_config.pkl
-|   |-- scaler.pkl
-|   |-- feature_names.pkl
-|   |-- cnn_config.pkl
-|
-|-- data/
-|   |-- processed/
-|       |-- features.csv           # 1049 x 34 extracted features
-|       |-- plots/                 # 18 saved visualization PNGs
-|
-|-- requirements.txt
-|-- .gitignore
-|-- README.md
----
+├── app/
+│   └── app.py                    # Streamlit web app (6 pages)
+├── notebooks/
+│   ├── 01_data_loading.py        # WESAD loading + sliding windows
+│   ├── 02_feature_extraction.py  # 34 physiological features
+│   ├── 03_visualization.py       # Data visualizations
+│   ├── 04_model_training.py      # SVM, XGBoost, MLP training
+│   ├── 05_clustering.py          # K-Means, PCA, t-SNE
+│   ├── 06_face_preprocessing.py  # FER2013 preprocessing
+│   ├── 07_train_cnn.py           # MobileNetV2 training
+│   ├── 07b_retrain_cnn.py        # MobileNetV2 fine-tuning
+│   └── 08_fusion.py              # Multimodal fusion
+├── models/
+│   ├── best_model_XGBoost.pkl
+│   ├── best_cnn_model.pth
+│   └── fusion_config.pkl
+├── data/processed/
+│   ├── features.csv              # 1049 x 34 features
+│   └── plots/                   # 18 visualization PNGs
+├── requirements.txt
+├── .gitignore
+└── README.md
+​```
 
 ## Installation
 
