@@ -23,17 +23,23 @@ The system is deployed as an interactive **Streamlit web application** with 6 fu
 
 ## Architecture
 
-​```
-ECG / EDA / EMG / Respiration
-           |
-   34 features extracted
-           |
-    XGBoost (97.14%) ─── weight 0.60 ──┐
-                                        ├──► Final Stress Score
-    MobileNetV2 (63.30%) ─ weight 0.40 ─┘
-           |
-    Face Image (48x48 grayscale)
-​```
+The system uses two parallel models whose probability outputs are combined:
+
+**Model 1 — Biosignal (XGBoost)**
+- Input: ECG, EDA, EMG, Respiration signals
+- Processing: 34 hand-crafted physiological features
+- Accuracy: 97.14%
+- Weight in fusion: 60%
+
+**Model 2 — Vision (MobileNetV2 CNN)**
+- Input: Face image (48x48 grayscale)
+- Processing: Transfer learning from ImageNet
+- Accuracy: 63.30%
+- Weight in fusion: 40%
+
+**Fusion**
+- Method: Weighted average of both model probability outputs
+- Final output: Baseline / Stress / Amusement
 
 ## Datasets
 
@@ -105,7 +111,36 @@ STRESS DETECTION/
 ├── requirements.txt
 ├── .gitignore
 └── README.md
-​```
+​```## Project Structure
+
+    app/
+        app.py                     Streamlit web application (6 pages)
+
+    notebooks/
+        01_data_loading.py         WESAD data loading and sliding windows
+        02_feature_extraction.py   34 physiological feature extraction
+        03_visualization.py        Data visualizations (10 plots)
+        04_model_training.py       SVM, XGBoost, MLP training
+        05_clustering.py           K-Means, PCA, t-SNE analysis
+        06_face_preprocessing.py   FER2013 loading and label mapping
+        07_train_cnn.py            MobileNetV2 initial training
+        07b_retrain_cnn.py         MobileNetV2 fine-tuning
+        08_fusion.py               Multimodal fusion analysis
+
+    models/
+        best_model_XGBoost.pkl     Trained XGBoost pipeline
+        best_cnn_model.pth         Trained CNN weights
+        fusion_config.pkl          Fusion weights and config
+        scaler.pkl                 Feature scaler
+        feature_names.pkl          List of 34 feature names
+
+    data/processed/
+        features.csv               1049 x 34 extracted features
+        plots/                     18 saved visualization PNGs
+
+    requirements.txt
+    .gitignore
+    README.md
 
 ## Installation
 
