@@ -1,4 +1,12 @@
-﻿# Multimodal Stress Detection System
+﻿---
+title: Stress Detection WESAD ML
+emoji: 🧠
+colorFrom: blue
+colorTo: red
+sdk: docker
+pinned: false
+---
+# Multimodal Stress Detection System
 ### Combining Physiological Biosignals + Facial Expressions using ML & Deep Learning
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
