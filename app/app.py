@@ -7,12 +7,18 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
-import torch
-import torch.nn as nn
-from torchvision import models, transforms
 from PIL import Image
 import warnings
 warnings.filterwarnings('ignore')
+
+# torch is optional - CNN features disabled on cloud
+try:
+    import torch
+    import torch.nn as nn
+    from torchvision import models, transforms
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
 
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────
 st.set_page_config(
@@ -27,7 +33,7 @@ BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODELS_PATH = os.path.join(BASE_DIR, "models")
 PLOTS_PATH  = os.path.join(BASE_DIR, "data", "processed", "plots")
 DATA_PATH   = os.path.join(BASE_DIR, "data", "processed")
-DEVICE      = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE      = torch.device("cpu") if TORCH_AVAILABLE else None
 
 # ── CONSTANTS ─────────────────────────────────────────────────────────────
 LABEL_NAMES  = {0: 'Baseline', 1: 'Stress', 2: 'Amusement'}
@@ -46,19 +52,20 @@ def load_all_models():
     feature_names = joblib.load(os.path.join(MODELS_PATH, "feature_names.pkl"))
     fusion_config = joblib.load(os.path.join(MODELS_PATH, "fusion_config.pkl"))
 
-    cnn = models.mobilenet_v2(weights=None)
-    cnn.classifier = nn.Sequential(
-        nn.Dropout(p=0.3),
-        nn.Linear(cnn.last_channel, 128),
-        nn.ReLU(),
-        nn.Dropout(p=0.2),
-        nn.Linear(128, 3)
-    )
-    cnn.load_state_dict(torch.load(
-        os.path.join(MODELS_PATH, "best_cnn_model.pth"),
-        map_location=DEVICE))
-    cnn = cnn.to(DEVICE)
-    cnn.eval()
+    cnn = None
+    if TORCH_AVAILABLE:
+        cnn = models.mobilenet_v2(weights=None)
+        cnn.classifier = nn.Sequential(
+            nn.Dropout(p=0.3),
+            nn.Linear(cnn.last_channel, 128),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
+            nn.Linear(128, 3)
+        )
+        cnn_path = os.path.join(MODELS_PATH, "best_cnn_model.pth")
+        if os.path.exists(cnn_path):
+            cnn.load_state_dict(torch.load(cnn_path, map_location="cpu"))
+            cnn.eval()
 
     return xgb_model, feature_names, fusion_config, cnn
 
@@ -66,6 +73,9 @@ xgb_model, feature_names, fusion_config, cnn_model = load_all_models()
 
 # ── CNN INFERENCE FUNCTION ────────────────────────────────────────────────
 def predict_face(image_input):
+    if not TORCH_AVAILABLE or cnn_model is None:
+        return np.array([0.33, 0.34, 0.33])
+
     transform = transforms.Compose([
         transforms.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
@@ -100,10 +110,10 @@ st.sidebar.markdown("---")
 st.sidebar.markdown(f"""
 **Models Loaded:**
 - ✅ XGBoost (Biosignal) — 97.14%
-- ✅ MobileNetV2 (Face) — 63.30%
-- ✅ Fusion Model — XGB×{fusion_config['xgb_weight']} + CNN×{fusion_config['cnn_weight']}
+- {'✅' if TORCH_AVAILABLE else '⚠️'} MobileNetV2 (Face) — 63.30%
+- ✅ Fusion Config loaded
 
-**Device:** {'🖥️ GPU (CUDA)' if DEVICE.type == 'cuda' else '💻 CPU'}
+**Device:** {'🖥️ GPU/CPU (PyTorch)' if TORCH_AVAILABLE else '💻 CPU only (no PyTorch)'}
 """)
 st.sidebar.markdown("---")
 page = st.sidebar.radio("Navigate", [
@@ -284,6 +294,9 @@ elif page == "📸 Face Stress Detection":
     st.markdown("Upload a face image — the CNN will predict your stress state.")
     st.markdown("---")
 
+    if not TORCH_AVAILABLE:
+        st.warning("CNN model not available on this deployment. Biosignal prediction and visualizations work fully. For CNN features, run the app locally.")
+
     st.info("""
     **How it works:**
     - Upload any face image (JPG, PNG)
@@ -292,8 +305,7 @@ elif page == "📸 Face Stress Detection":
     - Model trained on 28,709 FER2013 facial expression images
     """)
 
-    uploaded_img = st.file_uploader("Upload Face Image",
-                                    type=["jpg", "jpeg", "png"])
+    uploaded_img = st.file_uploader("Upload Face Image", type=["jpg", "jpeg", "png"])
 
     if uploaded_img:
         try:
@@ -312,8 +324,7 @@ elif page == "📸 Face Stress Detection":
 
                 fig, ax = plt.subplots(figsize=(6, 3))
                 ax.barh(list(LABEL_NAMES.values()), probs,
-                        color=[LABEL_COLORS[i] for i in range(3)],
-                        edgecolor='black')
+                        color=[LABEL_COLORS[i] for i in range(3)], edgecolor='black')
                 ax.set_xlabel('Probability')
                 ax.set_title('CNN Prediction Confidence', fontweight='bold')
                 ax.set_xlim(0, 1)
@@ -341,7 +352,6 @@ elif page == "📸 Face Stress Detection":
             try:
                 face_X_path = os.path.join(DATA_PATH, "face_X_test.npy")
                 face_y_path = os.path.join(DATA_PATH, "face_y_test.npy")
-
                 if not os.path.exists(face_X_path):
                     st.warning("Face test data not available on this deployment. Please upload an image instead.")
                 else:
@@ -365,7 +375,6 @@ elif page == "📸 Face Stress Detection":
                         else:
                             st.warning(f"True label: {LABEL_NAMES[true_lbl]}")
                         st.markdown(f"Confidence: **{probs[pred]*100:.1f}%**")
-
                         fig, ax = plt.subplots(figsize=(6, 3))
                         ax.barh(list(LABEL_NAMES.values()), probs,
                                 color=[LABEL_COLORS[i] for i in range(3)], edgecolor='black')
@@ -377,7 +386,6 @@ elif page == "📸 Face Stress Detection":
                         plt.tight_layout()
                         st.pyplot(fig)
                         plt.close()
-
             except Exception as e:
                 st.error(f"Error: {e}")
 
@@ -388,6 +396,9 @@ elif page == "🔀 Fusion Predict":
     st.title("🔀 Multimodal Fusion Prediction")
     st.markdown("Combine biosignal features + face image for the most accurate prediction.")
     st.markdown("---")
+
+    if not TORCH_AVAILABLE:
+        st.warning("CNN model not available on this deployment. Biosignal prediction and visualizations work fully. For CNN features, run the app locally.")
 
     xgb_w = fusion_config['xgb_weight']
     cnn_w = fusion_config['cnn_weight']
@@ -404,11 +415,6 @@ elif page == "🔀 Fusion Predict":
     st.markdown("---")
     use_sample = st.button("🎲 Use Sample Data (no upload needed)")
 
-    bio_probs  = None
-    face_probs = None
-    bio_pred   = None
-    face_pred  = None
-
     if use_sample or (bio_file and face_file):
         try:
             if use_sample:
@@ -419,26 +425,20 @@ elif page == "🔀 Fusion Predict":
                 bio_pred  = int(np.argmax(bio_probs))
 
                 face_X_path = os.path.join(DATA_PATH, "face_X_test.npy")
-                face_y_path = os.path.join(DATA_PATH, "face_y_test.npy")
-
                 if os.path.exists(face_X_path):
                     X_test     = np.load(face_X_path)
-                    y_test     = np.load(face_y_path)
                     img_array  = X_test[42]
                     face_probs = predict_face(img_array)
-                    face_pred  = int(np.argmax(face_probs))
                 else:
                     face_probs = np.array([0.33, 0.34, 0.33])
-                    face_pred  = int(np.argmax(face_probs))
-                    st.info("Face test data not on server — using neutral face probabilities for demo.")
-
+                    st.info("Face test data not on server — using neutral probabilities for demo.")
+                face_pred = int(np.argmax(face_probs))
                 st.success("Sample data loaded!")
             else:
                 df_input  = pd.read_csv(bio_file)
                 X_s       = df_input[feature_names].values[:1]
                 bio_probs = xgb_model.predict_proba(X_s)[0]
                 bio_pred  = int(np.argmax(bio_probs))
-
                 img_array, _ = process_uploaded_image(face_file)
                 face_probs   = predict_face(img_array)
                 face_pred    = int(np.argmax(face_probs))
@@ -448,7 +448,6 @@ elif page == "🔀 Fusion Predict":
 
             st.markdown("## 🎯 Fusion Result")
             col1, col2, col3 = st.columns(3)
-
             for col, title, pred, probs, model_name in [
                 (col1, "📊 Biosignal", bio_pred,   bio_probs,   "XGBoost"),
                 (col2, "📸 Face",      face_pred,  face_probs,  "MobileNetV2"),
@@ -457,7 +456,7 @@ elif page == "🔀 Fusion Predict":
                 with col:
                     st.markdown(f"### {title}")
                     st.markdown(f"**{LABEL_EMOJIS[pred]} {LABEL_NAMES[pred]}**")
-                    st.caption(f"{model_name} confidence: {probs[pred]*100:.1f}%")
+                    st.caption(f"{model_name}: {probs[pred]*100:.1f}%")
                     fig, ax = plt.subplots(figsize=(4, 2.5))
                     ax.barh(list(LABEL_NAMES.values()), probs,
                             color=[LABEL_COLORS[i] for i in range(3)])
@@ -470,8 +469,7 @@ elif page == "🔀 Fusion Predict":
             st.markdown("---")
             st.markdown(f"### Final Verdict: {LABEL_EMOJIS[final_pred]} **{LABEL_NAMES[final_pred]}**")
             st.markdown(f"*{LABEL_DESC[final_pred]}*")
-            stress_score = fused_probs[1] * 100
-            st.markdown(f"### 🎚️ Stress Score: **{stress_score:.1f}/100**")
+            st.markdown(f"### 🎚️ Stress Score: **{fused_probs[1]*100:.1f}/100**")
             st.progress(float(fused_probs[1]))
 
         except Exception as e:
@@ -486,7 +484,6 @@ elif page == "📊 Model Results":
     st.title("📊 Model Performance Results")
     st.markdown("---")
 
-    st.markdown("### 🏆 Final Model Leaderboard")
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🥇 XGBoost",     "97.14%", "Biosignal")
     col2.metric("🥈 SVM",         "95.81%", "Biosignal")
@@ -497,18 +494,16 @@ elif page == "📊 Model Results":
     tab1, tab2, tab3 = st.tabs(["📊 Biosignal Models", "🖼️ CNN Model", "🔀 Fusion"])
 
     with tab1:
-        st.markdown("### Biosignal Classification Reports")
         reports = {
-            'SVM':     {'Baseline':[0.97,0.97,0.97,570], 'Stress':[0.96,0.98,0.97,313], 'Amusement':[0.92,0.87,0.89,166]},
-            'XGBoost': {'Baseline':[0.98,0.98,0.98,570], 'Stress':[0.98,0.98,0.98,313], 'Amusement':[0.94,0.92,0.93,166]},
-            'MLP':     {'Baseline':[0.96,0.95,0.95,570], 'Stress':[0.95,0.93,0.94,313], 'Amusement':[0.81,0.86,0.83,166]},
+            'SVM':     {'Baseline':[0.97,0.97,0.97,570],'Stress':[0.96,0.98,0.97,313],'Amusement':[0.92,0.87,0.89,166]},
+            'XGBoost': {'Baseline':[0.98,0.98,0.98,570],'Stress':[0.98,0.98,0.98,313],'Amusement':[0.94,0.92,0.93,166]},
+            'MLP':     {'Baseline':[0.96,0.95,0.95,570],'Stress':[0.95,0.93,0.94,313],'Amusement':[0.81,0.86,0.83,166]},
         }
         selected  = st.selectbox("Select Model", list(reports.keys()))
         report_df = pd.DataFrame(reports[selected],
                                   index=['Precision','Recall','F1','Support']).T
         st.dataframe(report_df.style.highlight_max(axis=0, color='lightgreen'),
                      use_container_width=True)
-
         for title, fname, width in [
             ("### Confusion Matrices", "06_confusion_matrices.png", 800),
             ("### Model Comparison",   "07_model_comparison.png",   700),
@@ -519,19 +514,16 @@ elif page == "📊 Model Results":
                 st.image(p, width=width)
 
     with tab2:
-        st.markdown("### MobileNetV2 CNN Results")
         col1, col2, col3 = st.columns(3)
         col1.metric("Initial Accuracy",  "56.07%", "20 epochs")
         col2.metric("After Fine-tuning", "63.30%", "+7.23%")
         col3.metric("Trainable Params",  "77.3%",  "1.8M / 2.4M")
-
         cnn_report = pd.DataFrame({
-            'Baseline'  : [0.60, 0.60, 0.60, 2480],
-            'Stress'    : [0.57, 0.53, 0.55, 2093],
-            'Amusement' : [0.70, 0.74, 0.71, 2605],
+            'Baseline'  :[0.60,0.60,0.60,2480],
+            'Stress'    :[0.57,0.53,0.55,2093],
+            'Amusement' :[0.70,0.74,0.71,2605],
         }, index=['Precision','Recall','F1','Support']).T
         st.dataframe(cnn_report, use_container_width=True)
-
         col1, col2 = st.columns(2)
         with col1:
             p = os.path.join(PLOTS_PATH, "13b_cnn_finetuning_curves.png")
@@ -543,15 +535,13 @@ elif page == "📊 Model Results":
                 st.image(p, caption="CNN Confusion Matrix")
 
     with tab3:
-        st.markdown("### Fusion Model Analysis")
         col1, col2, col3 = st.columns(3)
         col1.metric("XGBoost Weight", f"{fusion_config['xgb_weight']}")
         col2.metric("CNN Weight",     f"{fusion_config['cnn_weight']}")
         col3.metric("Architecture",   "Weighted Average")
-
         for fname, caption in [
-            ("15_fusion_weights.png",       "Fusion Weight Analysis"),
-            ("16_final_model_comparison.png","Final Model Comparison"),
+            ("15_fusion_weights.png",        "Fusion Weight Analysis"),
+            ("16_final_model_comparison.png", "Final Model Comparison"),
         ]:
             p = os.path.join(PLOTS_PATH, fname)
             if os.path.exists(p):
@@ -588,7 +578,6 @@ elif page == "📈 Visualizations":
     selected_plot = st.selectbox("Select Visualization (18 total)",
                                   list(plot_files.keys()))
     plot_path = os.path.join(PLOTS_PATH, plot_files[selected_plot])
-
     if os.path.exists(plot_path):
         st.image(plot_path, use_container_width=True)
     else:
