@@ -23,8 +23,10 @@ st.set_page_config(
 )
 
 # ── PATHS ─────────────────────────────────────────────────────────────────
-MODELS_PATH = r"D:\STRESS DETECTION\models"
-PLOTS_PATH  = r"D:\STRESS DETECTION\data\processed\plots"
+BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODELS_PATH = os.path.join(BASE_DIR, "models")
+PLOTS_PATH  = os.path.join(BASE_DIR, "data", "processed", "plots")
+DATA_PATH   = os.path.join(BASE_DIR, "data", "processed")
 DEVICE      = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ── CONSTANTS ─────────────────────────────────────────────────────────────
@@ -40,15 +42,10 @@ LABEL_DESC   = {
 # ── LOAD MODELS ───────────────────────────────────────────────────────────
 @st.cache_resource
 def load_all_models():
-    # XGBoost
-    xgb_model     = joblib.load(os.path.join(MODELS_PATH,
-                                "best_model_XGBoost.pkl"))
-    feature_names  = joblib.load(os.path.join(MODELS_PATH,
-                                "feature_names.pkl"))
-    fusion_config  = joblib.load(os.path.join(MODELS_PATH,
-                                "fusion_config.pkl"))
+    xgb_model     = joblib.load(os.path.join(MODELS_PATH, "best_model_XGBoost.pkl"))
+    feature_names = joblib.load(os.path.join(MODELS_PATH, "feature_names.pkl"))
+    fusion_config = joblib.load(os.path.join(MODELS_PATH, "fusion_config.pkl"))
 
-    # CNN
     cnn = models.mobilenet_v2(weights=None)
     cnn.classifier = nn.Sequential(
         nn.Dropout(p=0.3),
@@ -78,7 +75,6 @@ def predict_face(image_input):
     else:
         img = image_input
 
-    # Ensure grayscale → 3 channel → (1, 3, 48, 48)
     if img.dim() == 2:
         img = img.unsqueeze(0).unsqueeze(0).repeat(1, 3, 1, 1)
     elif img.dim() == 3 and img.shape[0] == 1:
@@ -128,40 +124,38 @@ if page == "🏠 Overview":
     st.markdown("---")
 
     col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("📦 Bio Dataset",   "WESAD")
-    col2.metric("😊 Face Dataset",  "FER2013")
-    col3.metric("👥 Subjects",      "15")
-    col4.metric("🪟 Bio Windows",   "1,049")
-    col5.metric("🖼️ Face Images",  "35,887")
+    col1.metric("📦 Bio Dataset",  "WESAD")
+    col2.metric("😊 Face Dataset", "FER2013")
+    col3.metric("👥 Subjects",     "15")
+    col4.metric("🪟 Bio Windows",  "1,049")
+    col5.metric("🖼️ Face Images", "35,887")
 
     st.markdown("---")
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("## 🔬 Biosignal Pipeline")
-        bio_steps = [
+        for title, desc in [
             ("1️⃣ Data Loading",       "15 subjects, 60s sliding windows → 1,049 samples"),
             ("2️⃣ Signal Filtering",   "Bandpass ECG (0.5–40Hz), EDA, EMG, Respiration"),
             ("3️⃣ Feature Extraction", "34 features: HRV, EDA, Resp, EMG statistics"),
             ("4️⃣ Class Balancing",    "SMOTE inside each CV fold"),
             ("5️⃣ Model Training",     "SVM 95.8%, XGBoost 97.1%, MLP 93.0%"),
             ("6️⃣ Clustering",         "K-Means, PCA, t-SNE unsupervised analysis"),
-        ]
-        for title, desc in bio_steps:
+        ]:
             with st.expander(title):
                 st.write(desc)
 
     with col2:
         st.markdown("## 👁️ Vision Pipeline")
-        vis_steps = [
-            ("1️⃣ FER2013 Dataset",    "28,709 train + 7,178 test face images (48×48)"),
-            ("2️⃣ Label Mapping",      "7 emotions → 3 stress classes (Baseline/Stress/Amusement)"),
-            ("3️⃣ Preprocessing",      "Grayscale → 3-channel, normalize, augment"),
-            ("4️⃣ Transfer Learning",  "MobileNetV2 pretrained on ImageNet"),
-            ("5️⃣ Fine-tuning",        "Unfroze last 5 blocks, trained 35 epochs total"),
-            ("6️⃣ Result",             "63.30% accuracy on held-out test set"),
-        ]
-        for title, desc in vis_steps:
+        for title, desc in [
+            ("1️⃣ FER2013 Dataset",   "28,709 train + 7,178 test face images (48×48)"),
+            ("2️⃣ Label Mapping",     "7 emotions → 3 stress classes"),
+            ("3️⃣ Preprocessing",     "Grayscale → 3-channel, normalize, augment"),
+            ("4️⃣ Transfer Learning", "MobileNetV2 pretrained on ImageNet"),
+            ("5️⃣ Fine-tuning",       "Unfroze last 5 blocks, trained 35 epochs total"),
+            ("6️⃣ Result",            "63.30% accuracy on held-out test set"),
+        ]:
             with st.expander(title):
                 st.write(desc)
 
@@ -184,17 +178,15 @@ ECG / EDA / EMG / Resp signals
     st.markdown("---")
     st.markdown("## 📊 Dataset Distributions")
     col1, col2 = st.columns(2)
+    labels = ['Baseline', 'Stress', 'Amusement']
+    colors = ['#2196F3', '#F44336', '#4CAF50']
 
     with col1:
         fig, ax = plt.subplots(figsize=(6, 4))
-        labels  = ['Baseline', 'Stress', 'Amusement']
-        counts  = [570, 313, 166]
-        colors  = ['#2196F3', '#F44336', '#4CAF50']
-        bars    = ax.bar(labels, counts, color=colors, edgecolor='black')
-        for bar, val in zip(bars, counts):
+        bars = ax.bar(labels, [570, 313, 166], color=colors, edgecolor='black')
+        for bar, val in zip(bars, [570, 313, 166]):
             ax.text(bar.get_x() + bar.get_width()/2,
-                    bar.get_height() + 4,
-                    str(val), ha='center', fontweight='bold')
+                    bar.get_height() + 4, str(val), ha='center', fontweight='bold')
         ax.set_title('WESAD — Biosignal Windows', fontweight='bold')
         ax.set_ylabel('Count')
         ax.grid(axis='y', alpha=0.3)
@@ -203,12 +195,10 @@ ECG / EDA / EMG / Resp signals
 
     with col2:
         fig, ax = plt.subplots(figsize=(6, 4))
-        counts  = [9795, 8528, 10386]
-        bars    = ax.bar(labels, counts, color=colors, edgecolor='black')
-        for bar, val in zip(bars, counts):
+        bars = ax.bar(labels, [9795, 8528, 10386], color=colors, edgecolor='black')
+        for bar, val in zip(bars, [9795, 8528, 10386]):
             ax.text(bar.get_x() + bar.get_width()/2,
-                    bar.get_height() + 50,
-                    str(val), ha='center', fontweight='bold')
+                    bar.get_height() + 50, str(val), ha='center', fontweight='bold')
         ax.set_title('FER2013 — Face Images (Train)', fontweight='bold')
         ax.set_ylabel('Count')
         ax.grid(axis='y', alpha=0.3)
@@ -249,8 +239,7 @@ elif page == "🔍 Biosignal Predict":
 
                 st.markdown("### 📊 Summary")
                 col1, col2, col3 = st.columns(3)
-                for col, (lbl, name) in zip([col1,col2,col3],
-                                             LABEL_NAMES.items()):
+                for col, (lbl, name) in zip([col1, col2, col3], LABEL_NAMES.items()):
                     count = int(np.sum(preds == lbl))
                     col.metric(f"{LABEL_EMOJIS[lbl]} {name}", f"{count} windows")
 
@@ -260,9 +249,8 @@ elif page == "🔍 Biosignal Predict":
         st.markdown("### 💡 No CSV? Use real sample data:")
         if st.button("🎲 Generate Sample from WESAD Data"):
             try:
-                df_real = pd.read_csv(
-                    r"D:\STRESS DETECTION\data\processed\features.csv")
-                sample  = df_real.sample(1, random_state=np.random.randint(100))
+                df_real  = pd.read_csv(os.path.join(DATA_PATH, "features.csv"))
+                sample   = df_real.sample(1, random_state=np.random.randint(100))
                 true_lbl = int(sample['label'].values[0])
                 X_s      = sample[feature_names].values
                 pred     = xgb_model.predict(X_s)[0]
@@ -323,15 +311,14 @@ elif page == "📸 Face Stress Detection":
                 st.markdown(f"**Confidence: {probs[pred]*100:.1f}%**")
 
                 fig, ax = plt.subplots(figsize=(6, 3))
-                bars = ax.barh(list(LABEL_NAMES.values()), probs,
-                               color=[LABEL_COLORS[i] for i in range(3)],
-                               edgecolor='black')
+                ax.barh(list(LABEL_NAMES.values()), probs,
+                        color=[LABEL_COLORS[i] for i in range(3)],
+                        edgecolor='black')
                 ax.set_xlabel('Probability')
                 ax.set_title('CNN Prediction Confidence', fontweight='bold')
                 ax.set_xlim(0, 1)
                 for i, v in enumerate(probs):
-                    ax.text(v + 0.01, i, f'{v:.3f}', va='center',
-                            fontweight='bold')
+                    ax.text(v + 0.01, i, f'{v:.3f}', va='center', fontweight='bold')
                 plt.tight_layout()
                 st.pyplot(fig)
                 plt.close()
@@ -339,14 +326,10 @@ elif page == "📸 Face Stress Detection":
             st.markdown("---")
             st.markdown("### 📊 Emotion → Stress Mapping Used")
             mapping_df = pd.DataFrame({
-                'Emotion' : ['angry','disgust','fear',
-                             'happy','surprise','neutral','sad'],
-                'Maps To' : ['Stress','Stress','Stress',
-                             'Amusement','Amusement','Baseline','Baseline'],
-                'Reason'  : ['Negative arousal','Negative arousal',
-                             'High arousal stress','Positive affect',
-                             'Positive arousal','Calm neutral',
-                             'Low mood baseline']
+                'Emotion' : ['angry','disgust','fear','happy','surprise','neutral','sad'],
+                'Maps To' : ['Stress','Stress','Stress','Amusement','Amusement','Baseline','Baseline'],
+                'Reason'  : ['Negative arousal','Negative arousal','High arousal stress',
+                             'Positive affect','Positive arousal','Calm neutral','Low mood baseline']
             })
             st.dataframe(mapping_df, use_container_width=True)
 
@@ -356,42 +339,44 @@ elif page == "📸 Face Stress Detection":
         st.markdown("### 💡 Try with a sample face from FER2013:")
         if st.button("🎲 Load Random Test Face"):
             try:
-                X_test = np.load(
-                    r"D:\STRESS DETECTION\data\processed\face_X_test.npy")
-                y_test = np.load(
-                    r"D:\STRESS DETECTION\data\processed\face_y_test.npy")
-                idx       = np.random.randint(len(X_test))
-                img_array = X_test[idx]
-                true_lbl  = int(y_test[idx])
-                probs     = predict_face(img_array)
-                pred      = int(np.argmax(probs))
+                face_X_path = os.path.join(DATA_PATH, "face_X_test.npy")
+                face_y_path = os.path.join(DATA_PATH, "face_y_test.npy")
 
-                col1, col2 = st.columns([1, 2])
-                with col1:
-                    pil_img = Image.fromarray(
-                        (img_array * 255).astype(np.uint8))
-                    st.image(pil_img.resize((200, 200)),
-                             caption=f"True: {LABEL_NAMES[true_lbl]}", width=200)
-                with col2:
-                    st.markdown(f"## {LABEL_EMOJIS[pred]} **{LABEL_NAMES[pred]}**")
-                    if pred == true_lbl:
-                        st.success("✅ Correct prediction!")
-                    else:
-                        st.warning(f"True label: {LABEL_NAMES[true_lbl]}")
-                    st.markdown(f"Confidence: **{probs[pred]*100:.1f}%**")
+                if not os.path.exists(face_X_path):
+                    st.warning("Face test data not available on this deployment. Please upload an image instead.")
+                else:
+                    X_test    = np.load(face_X_path)
+                    y_test    = np.load(face_y_path)
+                    idx       = np.random.randint(len(X_test))
+                    img_array = X_test[idx]
+                    true_lbl  = int(y_test[idx])
+                    probs     = predict_face(img_array)
+                    pred      = int(np.argmax(probs))
 
-                    fig, ax = plt.subplots(figsize=(6, 3))
-                    ax.barh(list(LABEL_NAMES.values()), probs,
-                            color=[LABEL_COLORS[i] for i in range(3)],
-                            edgecolor='black')
-                    ax.set_xlabel('Probability')
-                    ax.set_title('CNN Prediction', fontweight='bold')
-                    ax.set_xlim(0, 1)
-                    for i, v in enumerate(probs):
-                        ax.text(v+0.01, i, f'{v:.3f}', va='center')
-                    plt.tight_layout()
-                    st.pyplot(fig)
-                    plt.close()
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        pil_img = Image.fromarray((img_array * 255).astype(np.uint8))
+                        st.image(pil_img.resize((200, 200)),
+                                 caption=f"True: {LABEL_NAMES[true_lbl]}", width=200)
+                    with col2:
+                        st.markdown(f"## {LABEL_EMOJIS[pred]} **{LABEL_NAMES[pred]}**")
+                        if pred == true_lbl:
+                            st.success("✅ Correct prediction!")
+                        else:
+                            st.warning(f"True label: {LABEL_NAMES[true_lbl]}")
+                        st.markdown(f"Confidence: **{probs[pred]*100:.1f}%**")
+
+                        fig, ax = plt.subplots(figsize=(6, 3))
+                        ax.barh(list(LABEL_NAMES.values()), probs,
+                                color=[LABEL_COLORS[i] for i in range(3)], edgecolor='black')
+                        ax.set_xlabel('Probability')
+                        ax.set_title('CNN Prediction', fontweight='bold')
+                        ax.set_xlim(0, 1)
+                        for i, v in enumerate(probs):
+                            ax.text(v+0.01, i, f'{v:.3f}', va='center')
+                        plt.tight_layout()
+                        st.pyplot(fig)
+                        plt.close()
 
             except Exception as e:
                 st.error(f"Error: {e}")
@@ -411,16 +396,12 @@ elif page == "🔀 Fusion Predict":
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("### 📊 Step 1 — Upload Biosignal CSV")
-        bio_file = st.file_uploader("Biosignal Features CSV", type=["csv"],
-                                     key="fusion_bio")
+        bio_file = st.file_uploader("Biosignal Features CSV", type=["csv"], key="fusion_bio")
     with col2:
         st.markdown("### 📸 Step 2 — Upload Face Image")
-        face_file = st.file_uploader("Face Image", type=["jpg","jpeg","png"],
-                                      key="fusion_face")
+        face_file = st.file_uploader("Face Image", type=["jpg","jpeg","png"], key="fusion_face")
 
     st.markdown("---")
-
-    # Option to use sample data
     use_sample = st.button("🎲 Use Sample Data (no upload needed)")
 
     bio_probs  = None
@@ -431,26 +412,27 @@ elif page == "🔀 Fusion Predict":
     if use_sample or (bio_file and face_file):
         try:
             if use_sample:
-                # Load real sample from saved data
-                df_real   = pd.read_csv(
-                    r"D:\STRESS DETECTION\data\processed\features.csv")
+                df_real   = pd.read_csv(os.path.join(DATA_PATH, "features.csv"))
                 sample    = df_real.sample(1, random_state=42)
-                true_bio  = int(sample['label'].values[0])
                 X_s       = sample[feature_names].values
                 bio_probs = xgb_model.predict_proba(X_s)[0]
                 bio_pred  = int(np.argmax(bio_probs))
 
-                X_test    = np.load(
-                    r"D:\STRESS DETECTION\data\processed\face_X_test.npy")
-                y_test    = np.load(
-                    r"D:\STRESS DETECTION\data\processed\face_y_test.npy")
-                idx        = 42
-                img_array  = X_test[idx]
-                true_face  = int(y_test[idx])
-                face_probs = predict_face(img_array)
-                face_pred  = int(np.argmax(face_probs))
+                face_X_path = os.path.join(DATA_PATH, "face_X_test.npy")
+                face_y_path = os.path.join(DATA_PATH, "face_y_test.npy")
 
-                st.success("Sample data loaded successfully!")
+                if os.path.exists(face_X_path):
+                    X_test     = np.load(face_X_path)
+                    y_test     = np.load(face_y_path)
+                    img_array  = X_test[42]
+                    face_probs = predict_face(img_array)
+                    face_pred  = int(np.argmax(face_probs))
+                else:
+                    face_probs = np.array([0.33, 0.34, 0.33])
+                    face_pred  = int(np.argmax(face_probs))
+                    st.info("Face test data not on server — using neutral face probabilities for demo.")
+
+                st.success("Sample data loaded!")
             else:
                 df_input  = pd.read_csv(bio_file)
                 X_s       = df_input[feature_names].values[:1]
@@ -461,61 +443,33 @@ elif page == "🔀 Fusion Predict":
                 face_probs   = predict_face(img_array)
                 face_pred    = int(np.argmax(face_probs))
 
-            # Fusion
             fused_probs = xgb_w * bio_probs + cnn_w * face_probs
             final_pred  = int(np.argmax(fused_probs))
 
-            # Display results
             st.markdown("## 🎯 Fusion Result")
             col1, col2, col3 = st.columns(3)
 
-            with col1:
-                st.markdown("### 📊 Biosignal")
-                st.markdown(f"**{LABEL_EMOJIS[bio_pred]} {LABEL_NAMES[bio_pred]}**")
-                st.caption(f"XGBoost confidence: {bio_probs[bio_pred]*100:.1f}%")
-                fig, ax = plt.subplots(figsize=(4, 2.5))
-                ax.barh(list(LABEL_NAMES.values()), bio_probs,
-                        color=[LABEL_COLORS[i] for i in range(3)])
-                ax.set_xlim(0, 1)
-                ax.set_title('XGBoost', fontsize=9)
-                plt.tight_layout()
-                st.pyplot(fig)
-                plt.close()
-
-            with col2:
-                st.markdown("### 📸 Face")
-                st.markdown(f"**{LABEL_EMOJIS[face_pred]} {LABEL_NAMES[face_pred]}**")
-                st.caption(f"CNN confidence: {face_probs[face_pred]*100:.1f}%")
-                fig, ax = plt.subplots(figsize=(4, 2.5))
-                ax.barh(list(LABEL_NAMES.values()), face_probs,
-                        color=[LABEL_COLORS[i] for i in range(3)])
-                ax.set_xlim(0, 1)
-                ax.set_title('MobileNetV2', fontsize=9)
-                plt.tight_layout()
-                st.pyplot(fig)
-                plt.close()
-
-            with col3:
-                st.markdown("### 🔀 Fusion")
-                st.markdown(f"**{LABEL_EMOJIS[final_pred]} "
-                            f"{LABEL_NAMES[final_pred]}**")
-                st.caption(f"Combined confidence: "
-                           f"{fused_probs[final_pred]*100:.1f}%")
-                fig, ax = plt.subplots(figsize=(4, 2.5))
-                ax.barh(list(LABEL_NAMES.values()), fused_probs,
-                        color=[LABEL_COLORS[i] for i in range(3)])
-                ax.set_xlim(0, 1)
-                ax.set_title('Fusion', fontsize=9)
-                plt.tight_layout()
-                st.pyplot(fig)
-                plt.close()
+            for col, title, pred, probs, model_name in [
+                (col1, "📊 Biosignal", bio_pred,   bio_probs,   "XGBoost"),
+                (col2, "📸 Face",      face_pred,  face_probs,  "MobileNetV2"),
+                (col3, "🔀 Fusion",    final_pred, fused_probs, "Fusion"),
+            ]:
+                with col:
+                    st.markdown(f"### {title}")
+                    st.markdown(f"**{LABEL_EMOJIS[pred]} {LABEL_NAMES[pred]}**")
+                    st.caption(f"{model_name} confidence: {probs[pred]*100:.1f}%")
+                    fig, ax = plt.subplots(figsize=(4, 2.5))
+                    ax.barh(list(LABEL_NAMES.values()), probs,
+                            color=[LABEL_COLORS[i] for i in range(3)])
+                    ax.set_xlim(0, 1)
+                    ax.set_title(model_name, fontsize=9)
+                    plt.tight_layout()
+                    st.pyplot(fig)
+                    plt.close()
 
             st.markdown("---")
-            st.markdown(f"### Final Verdict: {LABEL_EMOJIS[final_pred]} "
-                        f"**{LABEL_NAMES[final_pred]}**")
+            st.markdown(f"### Final Verdict: {LABEL_EMOJIS[final_pred]} **{LABEL_NAMES[final_pred]}**")
             st.markdown(f"*{LABEL_DESC[final_pred]}*")
-
-            # Stress score gauge
             stress_score = fused_probs[1] * 100
             st.markdown(f"### 🎚️ Stress Score: **{stress_score:.1f}/100**")
             st.progress(float(fused_probs[1]))
@@ -540,51 +494,37 @@ elif page == "📊 Model Results":
     col4.metric("🤖 MobileNetV2", "63.30%", "Face CNN")
 
     st.markdown("---")
-    tab1, tab2, tab3 = st.tabs(["📊 Biosignal Models",
-                                 "🖼️ CNN Model",
-                                 "🔀 Fusion"])
+    tab1, tab2, tab3 = st.tabs(["📊 Biosignal Models", "🖼️ CNN Model", "🔀 Fusion"])
 
     with tab1:
         st.markdown("### Biosignal Classification Reports")
         reports = {
-            'SVM': {
-                'Baseline'  :[0.97,0.97,0.97,570],
-                'Stress'    :[0.96,0.98,0.97,313],
-                'Amusement' :[0.92,0.87,0.89,166]},
-            'XGBoost': {
-                'Baseline'  :[0.98,0.98,0.98,570],
-                'Stress'    :[0.98,0.98,0.98,313],
-                'Amusement' :[0.94,0.92,0.93,166]},
-            'MLP': {
-                'Baseline'  :[0.96,0.95,0.95,570],
-                'Stress'    :[0.95,0.93,0.94,313],
-                'Amusement' :[0.81,0.86,0.83,166]},
+            'SVM':     {'Baseline':[0.97,0.97,0.97,570], 'Stress':[0.96,0.98,0.97,313], 'Amusement':[0.92,0.87,0.89,166]},
+            'XGBoost': {'Baseline':[0.98,0.98,0.98,570], 'Stress':[0.98,0.98,0.98,313], 'Amusement':[0.94,0.92,0.93,166]},
+            'MLP':     {'Baseline':[0.96,0.95,0.95,570], 'Stress':[0.95,0.93,0.94,313], 'Amusement':[0.81,0.86,0.83,166]},
         }
-        selected = st.selectbox("Select Model", list(reports.keys()))
+        selected  = st.selectbox("Select Model", list(reports.keys()))
         report_df = pd.DataFrame(reports[selected],
-                                  index=['Precision','Recall',
-                                         'F1','Support']).T
-        st.dataframe(report_df.style.highlight_max(
-            axis=0, color='lightgreen'), use_container_width=True)
+                                  index=['Precision','Recall','F1','Support']).T
+        st.dataframe(report_df.style.highlight_max(axis=0, color='lightgreen'),
+                     use_container_width=True)
 
-        st.markdown("### Confusion Matrices")
-        p = os.path.join(PLOTS_PATH, "06_confusion_matrices.png")
-        if os.path.exists(p):
-            st.image(p, width=800)
-
-        st.markdown("### Model Comparison")
-        p = os.path.join(PLOTS_PATH, "07_model_comparison.png")
-        if os.path.exists(p):
-            st.image(p, width=700)
+        for title, fname, width in [
+            ("### Confusion Matrices", "06_confusion_matrices.png", 800),
+            ("### Model Comparison",   "07_model_comparison.png",   700),
+        ]:
+            p = os.path.join(PLOTS_PATH, fname)
+            if os.path.exists(p):
+                st.markdown(title)
+                st.image(p, width=width)
 
     with tab2:
         st.markdown("### MobileNetV2 CNN Results")
         col1, col2, col3 = st.columns(3)
-        col1.metric("Initial Accuracy", "56.07%", "20 epochs")
-        col2.metric("After Fine-tuning","63.30%", "+7.23%")
-        col3.metric("Trainable Params", "77.3%",  "1.8M / 2.4M")
+        col1.metric("Initial Accuracy",  "56.07%", "20 epochs")
+        col2.metric("After Fine-tuning", "63.30%", "+7.23%")
+        col3.metric("Trainable Params",  "77.3%",  "1.8M / 2.4M")
 
-        st.markdown("**Per-class performance:**")
         cnn_report = pd.DataFrame({
             'Baseline'  : [0.60, 0.60, 0.60, 2480],
             'Stress'    : [0.57, 0.53, 0.55, 2093],
@@ -609,14 +549,13 @@ elif page == "📊 Model Results":
         col2.metric("CNN Weight",     f"{fusion_config['cnn_weight']}")
         col3.metric("Architecture",   "Weighted Average")
 
-        p = os.path.join(PLOTS_PATH, "15_fusion_weights.png")
-        if os.path.exists(p):
-            st.image(p, caption="Fusion Weight Analysis",
-                     use_container_width=True)
-        p = os.path.join(PLOTS_PATH, "16_final_model_comparison.png")
-        if os.path.exists(p):
-            st.image(p, caption="Final Model Comparison",
-                     use_container_width=True)
+        for fname, caption in [
+            ("15_fusion_weights.png",       "Fusion Weight Analysis"),
+            ("16_final_model_comparison.png","Final Model Comparison"),
+        ]:
+            p = os.path.join(PLOTS_PATH, fname)
+            if os.path.exists(p):
+                st.image(p, caption=caption, use_container_width=True)
 
 # ══════════════════════════════════════════════════════════════════════════
 # PAGE 6: VISUALIZATIONS
@@ -626,24 +565,24 @@ elif page == "📈 Visualizations":
     st.markdown("---")
 
     plot_files = {
-        "01 — Class Distribution (Biosignal)"     : "01_label_distribution.png",
-        "02 — Feature Boxplots"                   : "02_feature_boxplots.png",
-        "03 — Correlation Heatmap"                : "03_correlation_heatmap.png",
-        "04 — Violin Plots (HR & RMSSD)"          : "04_violin_plots.png",
-        "05 — Feature Means per Class"            : "05_feature_means.png",
-        "06 — Confusion Matrices (3 Models)"      : "06_confusion_matrices.png",
-        "07 — Model Comparison (Acc & F1)"        : "07_model_comparison.png",
-        "08 — K-Means Elbow Method"               : "08_elbow_method.png",
-        "09 — PCA Projection"                     : "09_pca_visualization.png",
-        "10 — t-SNE Projection"                   : "10_tsne_visualization.png",
-        "11 — Sample Face Images per Class"       : "11_sample_faces.png",
-        "12 — Face Dataset Distribution"          : "12_face_distribution.png",
-        "13 — CNN Initial Training Curves"        : "13_cnn_training_curves.png",
-        "13b — CNN Fine-tuning Curves"            : "13b_cnn_finetuning_curves.png",
-        "14 — CNN Initial Confusion Matrix"       : "14_cnn_confusion_matrix.png",
-        "14b — CNN Fine-tuned Confusion Matrix"   : "14b_cnn_finetuned_confusion.png",
-        "15 — Fusion Weight Analysis"             : "15_fusion_weights.png",
-        "16 — Final Model Comparison"             : "16_final_model_comparison.png",
+        "01 — Class Distribution (Biosignal)"   : "01_label_distribution.png",
+        "02 — Feature Boxplots"                 : "02_feature_boxplots.png",
+        "03 — Correlation Heatmap"              : "03_correlation_heatmap.png",
+        "04 — Violin Plots (HR & RMSSD)"        : "04_violin_plots.png",
+        "05 — Feature Means per Class"          : "05_feature_means.png",
+        "06 — Confusion Matrices (3 Models)"    : "06_confusion_matrices.png",
+        "07 — Model Comparison (Acc & F1)"      : "07_model_comparison.png",
+        "08 — K-Means Elbow Method"             : "08_elbow_method.png",
+        "09 — PCA Projection"                   : "09_pca_visualization.png",
+        "10 — t-SNE Projection"                 : "10_tsne_visualization.png",
+        "11 — Sample Face Images per Class"     : "11_sample_faces.png",
+        "12 — Face Dataset Distribution"        : "12_face_distribution.png",
+        "13 — CNN Initial Training Curves"      : "13_cnn_training_curves.png",
+        "13b — CNN Fine-tuning Curves"          : "13b_cnn_finetuning_curves.png",
+        "14 — CNN Initial Confusion Matrix"     : "14_cnn_confusion_matrix.png",
+        "14b — CNN Fine-tuned Confusion Matrix" : "14b_cnn_finetuned_confusion.png",
+        "15 — Fusion Weight Analysis"           : "15_fusion_weights.png",
+        "16 — Final Model Comparison"           : "16_final_model_comparison.png",
     }
 
     selected_plot = st.selectbox("Select Visualization (18 total)",
