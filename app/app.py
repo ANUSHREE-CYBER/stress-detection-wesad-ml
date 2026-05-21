@@ -48,28 +48,37 @@ LABEL_DESC   = {
 # ── LOAD MODELS ───────────────────────────────────────────────────────────
 @st.cache_resource
 def load_all_models():
-    xgb_model     = joblib.load(os.path.join(MODELS_PATH, "best_model_XGBoost.pkl"))
-    feature_names = joblib.load(os.path.join(MODELS_PATH, "feature_names.pkl"))
-    fusion_config = joblib.load(os.path.join(MODELS_PATH, "fusion_config.pkl"))
+    xgb_model     = None
+    feature_names = None
+    fusion_config = None
+    cnn           = None
 
-    cnn = None
+    try:
+        xgb_model     = joblib.load(os.path.join(MODELS_PATH, "best_model_XGBoost.pkl"))
+        feature_names = joblib.load(os.path.join(MODELS_PATH, "feature_names.pkl"))
+        fusion_config = joblib.load(os.path.join(MODELS_PATH, "fusion_config.pkl"))
+    except FileNotFoundError as e:
+        st.error(f"Model files not found: {e}")
+        st.stop()
+
     if TORCH_AVAILABLE:
-        cnn = models.mobilenet_v2(weights=None)
-        cnn.classifier = nn.Sequential(
-            nn.Dropout(p=0.3),
-            nn.Linear(cnn.last_channel, 128),
-            nn.ReLU(),
-            nn.Dropout(p=0.2),
-            nn.Linear(128, 3)
-        )
-        cnn_path = os.path.join(MODELS_PATH, "best_cnn_model.pth")
-        if os.path.exists(cnn_path):
-            cnn.load_state_dict(torch.load(cnn_path, map_location="cpu"))
-            cnn.eval()
+        try:
+            cnn = models.mobilenet_v2(weights=None)
+            cnn.classifier = nn.Sequential(
+                nn.Dropout(p=0.3),
+                nn.Linear(cnn.last_channel, 128),
+                nn.ReLU(),
+                nn.Dropout(p=0.2),
+                nn.Linear(128, 3)
+            )
+            cnn_path = os.path.join(MODELS_PATH, "best_cnn_model.pth")
+            if os.path.exists(cnn_path):
+                cnn.load_state_dict(torch.load(cnn_path, map_location="cpu"))
+                cnn.eval()
+        except Exception:
+            cnn = None
 
     return xgb_model, feature_names, fusion_config, cnn
-
-xgb_model, feature_names, fusion_config, cnn_model = load_all_models()
 
 # ── CNN INFERENCE FUNCTION ────────────────────────────────────────────────
 def predict_face(image_input):
