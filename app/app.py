@@ -80,6 +80,9 @@ def load_all_models():
 
     return xgb_model, feature_names, fusion_config, cnn
 
+# ── UNPACK MODELS ─────────────────────────────────────────────────────────
+xgb_model, feature_names, fusion_config, cnn_model = load_all_models()
+
 # ── CNN INFERENCE FUNCTION ────────────────────────────────────────────────
 def predict_face(image_input):
     if not TORCH_AVAILABLE or cnn_model is None:
@@ -232,8 +235,9 @@ elif page == "🔍 Biosignal Predict":
     st.markdown("Upload a CSV of extracted ECG/EDA/EMG/Respiration features.")
     st.markdown("---")
 
-    st.info(f"**Required columns ({len(feature_names)}):** " +
-            ", ".join(feature_names[:6]) + " ... and 28 more")
+    if feature_names is not None:
+        st.info(f"**Required columns ({len(feature_names)}):** " +
+                ", ".join(feature_names[:6]) + " ... and 28 more")
 
     uploaded = st.file_uploader("Upload Features CSV", type=["csv"])
 
@@ -409,8 +413,8 @@ elif page == "🔀 Fusion Predict":
     if not TORCH_AVAILABLE:
         st.warning("CNN model not available on this deployment. Biosignal prediction and visualizations work fully. For CNN features, run the app locally.")
 
-    xgb_w = fusion_config['xgb_weight']
-    cnn_w = fusion_config['cnn_weight']
+    xgb_w = fusion_config['xgb_weight'] if fusion_config else 0.6
+    cnn_w = fusion_config['cnn_weight'] if fusion_config else 0.4
     st.info(f"**Fusion weights:** XGBoost × {xgb_w} + CNN × {cnn_w}")
 
     col1, col2 = st.columns(2)
@@ -545,8 +549,8 @@ elif page == "📊 Model Results":
 
     with tab3:
         col1, col2, col3 = st.columns(3)
-        col1.metric("XGBoost Weight", f"{fusion_config['xgb_weight']}")
-        col2.metric("CNN Weight",     f"{fusion_config['cnn_weight']}")
+        col1.metric("XGBoost Weight", f"{fusion_config['xgb_weight']}" if fusion_config else "0.6")
+        col2.metric("CNN Weight",     f"{fusion_config['cnn_weight']}"  if fusion_config else "0.4")
         col3.metric("Architecture",   "Weighted Average")
         for fname, caption in [
             ("15_fusion_weights.png",        "Fusion Weight Analysis"),
