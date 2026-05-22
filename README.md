@@ -14,6 +14,7 @@ pinned: false
 ![Scikit-Learn](https://img.shields.io/badge/ScikitLearn-1.8.0-orange)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.57-green)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
+![Streamlit](https://img.shields.io/badge/Streamlit-Live%20Demo-FF4B4B)
 
 ---
 
@@ -28,6 +29,19 @@ This project implements an end-to-end **multimodal stress detection pipeline** t
 The system is deployed as an interactive **Streamlit web application** with 6 functional pages.
 
 ---
+## Live Demo
+
+**Try the app here:** https://stress-detection-wesad-ml-tksei97flafzukv2fnrocd.streamlit.app
+
+**What works on the live demo:**
+- Overview page with full project pipeline
+- Biosignal Predict — upload CSV or use sample WESAD data
+- Model Results — detailed metrics, confusion matrices, classification reports
+- Visualizations — all 18 generated plots
+
+**What requires local setup (PyTorch too large for cloud):**
+- Face Stress Detection via CNN
+- Multimodal Fusion prediction
 
 ## Architecture
 
