@@ -54,11 +54,27 @@ def load_all_models():
     cnn           = None
 
     try:
-        xgb_model     = joblib.load(os.path.join(MODELS_PATH, "best_model_XGBoost.pkl"))
+        # Try loading the simple model first (cloud compatible)
+        xgb_path = os.path.join(MODELS_PATH, "xgb_model_only.pkl")
+        full_path = os.path.join(MODELS_PATH, "best_model_XGBoost.pkl")
+
+        if os.path.exists(xgb_path):
+            # Cloud version - no SMOTE pipeline
+            xgb_raw       = joblib.load(xgb_path)
+            scaler        = joblib.load(os.path.join(MODELS_PATH, "scaler_cloud.pkl"))
+            # Wrap in a simple sklearn pipeline (no SMOTE)
+            from sklearn.pipeline import Pipeline
+            from sklearn.preprocessing import StandardScaler
+            xgb_model = Pipeline([('scaler', scaler), ('model', xgb_raw)])
+        else:
+            # Local version - full SMOTE pipeline
+            xgb_model = joblib.load(full_path)
+
         feature_names = joblib.load(os.path.join(MODELS_PATH, "feature_names.pkl"))
         fusion_config = joblib.load(os.path.join(MODELS_PATH, "fusion_config.pkl"))
-    except FileNotFoundError as e:
-        st.error(f"Model files not found: {e}")
+
+    except Exception as e:
+        st.error(f"Model loading error: {e}")
         st.stop()
 
     if TORCH_AVAILABLE:
