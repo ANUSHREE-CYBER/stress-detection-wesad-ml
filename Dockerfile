@@ -10,12 +10,16 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libxrender-dev \
     libgomp1 \
-    && rm -rf /var/lib/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements-hf.txt ./
 RUN pip install --no-cache-dir -r requirements-hf.txt
 
-COPY . .
+RUN useradd --create-home --shell /bin/bash appuser
+
+COPY --chown=appuser:appuser . .
+
+USER appuser
 
 EXPOSE 8501
 

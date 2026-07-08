@@ -1,0 +1,12 @@
+.git
+__pycache__
+*.pyc
+notebooks/
+data/raw/
+*.md
+.gitignore
+.python-version
+TOOLS.INI
+WESAD Dataset/
+FER2013/
+data/processed/*.npy

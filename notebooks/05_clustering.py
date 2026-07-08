@@ -109,7 +109,7 @@ print("  Saved: 09_pca_visualization.png")
 
 # ── t-SNE VISUALIZATION ───────────────────────────────────────────────────
 print("Running t-SNE (this takes ~1-2 minutes)...")
-tsne   = TSNE(n_components=2, perplexity=30, random_state=42, n_iter=1000)
+tsne   = TSNE(n_components=2, perplexity=30, random_state=42, max_iter=1000)
 X_tsne = tsne.fit_transform(X_scaled)
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
