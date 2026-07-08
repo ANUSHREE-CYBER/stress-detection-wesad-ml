@@ -140,7 +140,7 @@ st.sidebar.title("🧠 Multimodal Stress Detection")
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"""
 **Models Loaded:**
-- ✅ XGBoost (Biosignal) — 97.14%
+- ✅ XGBoost (Biosignal, deployed) — 74.57% ± 18.22%
 - {'✅' if TORCH_AVAILABLE else '⚠️'} MobileNetV2 (Face) — 63.30%
 - ✅ Fusion Config loaded
 
@@ -181,7 +181,7 @@ if page == "🏠 Overview":
             ("2️⃣ Signal Filtering",   "Bandpass ECG (0.5–40Hz), EDA, EMG, Respiration"),
             ("3️⃣ Feature Extraction", "34 features: HRV, EDA, Resp, EMG statistics"),
             ("4️⃣ Class Balancing",    "SMOTE inside each CV fold"),
-            ("5️⃣ Model Training",     "SVM 95.8%, XGBoost 97.1%, MLP 93.0%"),
+            ("5️⃣ Model Training",     "Leave-One-Subject-Out CV: SVM 76.2%, XGBoost 74.6%, MLP 72.9%"),
             ("6️⃣ Clustering",         "K-Means, PCA, t-SNE unsupervised analysis"),
         ]:
             with st.expander(title):
@@ -208,7 +208,7 @@ ECG / EDA / EMG / Resp signals
   34 features extracted
         ↓
    XGBoost Model ──────────────────────┐
-   (97.14% accuracy)                   │  weight = 0.6
+   (74.57% LOSO acc)                   │  weight = 0.6
                                        ├──► Weighted Average ──► Final Stress Score
    Face Image (48×48)                  │  weight = 0.4
         ↓                              │
@@ -517,19 +517,20 @@ elif page == "📊 Model Results":
     st.markdown("---")
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🥇 XGBoost",     "97.14%", "Biosignal")
-    col2.metric("🥈 SVM",         "95.81%", "Biosignal")
-    col3.metric("🥉 MLP",         "93.04%", "Biosignal")
+    col1.metric("🥇 SVM",         "76.15%", "± 13.86% LOSO", delta_color="off")
+    col2.metric("🥈 XGBoost",     "74.57%", "± 18.22% LOSO", delta_color="off")
+    col3.metric("🥉 MLP",         "72.91%", "± 17.69% LOSO", delta_color="off")
     col4.metric("🤖 MobileNetV2", "63.30%", "Face CNN")
 
     st.markdown("---")
     tab1, tab2, tab3 = st.tabs(["📊 Biosignal Models", "🖼️ CNN Model", "🔀 Fusion"])
 
     with tab1:
+        # Per-class scores from pooled Leave-One-Subject-Out out-of-fold predictions
         reports = {
-            'SVM':     {'Baseline':[0.97,0.97,0.97,570],'Stress':[0.96,0.98,0.97,313],'Amusement':[0.92,0.87,0.89,166]},
-            'XGBoost': {'Baseline':[0.98,0.98,0.98,570],'Stress':[0.98,0.98,0.98,313],'Amusement':[0.94,0.92,0.93,166]},
-            'MLP':     {'Baseline':[0.96,0.95,0.95,570],'Stress':[0.95,0.93,0.94,313],'Amusement':[0.81,0.86,0.83,166]},
+            'SVM':     {'Baseline':[0.84,0.80,0.82,570],'Stress':[0.85,0.83,0.84,313],'Amusement':[0.42,0.51,0.46,166]},
+            'XGBoost': {'Baseline':[0.83,0.78,0.81,570],'Stress':[0.76,0.85,0.80,313],'Amusement':[0.45,0.44,0.44,166]},
+            'MLP':     {'Baseline':[0.85,0.75,0.79,570],'Stress':[0.82,0.79,0.81,313],'Amusement':[0.38,0.55,0.45,166]},
         }
         selected  = st.selectbox("Select Model", list(reports.keys()))
         report_df = pd.DataFrame(reports[selected],
