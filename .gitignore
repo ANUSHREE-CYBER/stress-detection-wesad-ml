@@ -54,3 +54,4 @@ models/final_cnn_model.pth
 models/best_model_XGBoost.pkl
 data/processed/plots/*.png
 CODE_REVIEW.md
+models/best_model_SVM.pkl
