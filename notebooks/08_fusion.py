@@ -33,7 +33,7 @@ print("\nLoading XGBoost model...")
 xgb_pipeline   = joblib.load(os.path.join(MODELS_PATH, "best_model_XGBoost.pkl"))
 feature_names  = joblib.load(os.path.join(MODELS_PATH, "feature_names.pkl"))
 df_features    = pd.read_csv(os.path.join(PROCESSED_PATH, "features.csv"))
-X_bio          = df_features.drop('label', axis=1).values
+X_bio          = df_features.drop(['label', 'subject_id'], axis=1).values
 y_bio          = df_features['label'].values
 print(f"Biosignal data: {X_bio.shape}")
 

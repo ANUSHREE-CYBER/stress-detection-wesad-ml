@@ -47,7 +47,7 @@ def load_subject(subject_id):
     return ecg_filtered, eda, resp, emg, labels
 
 # ── SLIDING WINDOW ───────────────────────────────────────────────────────
-def sliding_windows(ecg, eda, resp, emg, labels):
+def sliding_windows(ecg, eda, resp, emg, labels, subject_id):
     windows = []
     n = len(ecg)
     for start in range(0, n - WINDOW_SAMP, STEP_SAMP):
@@ -72,7 +72,8 @@ def sliding_windows(ecg, eda, resp, emg, labels):
             'eda' : eda [start:end],
             'resp': resp[start:end],
             'emg' : emg [start:end],
-            'label': KEEP_LABELS[majority_label]
+            'label': KEEP_LABELS[majority_label],
+            'subject_id': subject_id   # metadata: which WESAD subject this window came from
         })
     return windows
 
@@ -85,7 +86,7 @@ for subj in SUBJECTS:
     print(f"  Loading {subj}...", end=" ")
     try:
         ecg, eda, resp, emg, labels = load_subject(subj)
-        windows = sliding_windows(ecg, eda, resp, emg, labels)
+        windows = sliding_windows(ecg, eda, resp, emg, labels, subj)
         all_windows.extend(windows)
         subject_counts[subj] = len(windows)
         print(f"{len(windows)} windows")

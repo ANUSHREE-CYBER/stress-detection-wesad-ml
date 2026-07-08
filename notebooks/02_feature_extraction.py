@@ -99,6 +99,12 @@ print("Extracting features from each window...")
 feature_rows = []
 skipped = 0
 
+# NaN/inf tracking — constant/zero-variance windows can produce NaN (skew,
+# kurtosis, std/mean) or inf (division by zero) in the stats above.
+windows_affected = 0
+total_nan = 0
+total_inf = 0
+
 for i, window in enumerate(all_windows):
     if i % 100 == 0:
         print(f"  Processing window {i}/{len(all_windows)}...")
@@ -117,17 +123,46 @@ for i, window in enumerate(all_windows):
     row.update(eda)
     row.update(resp)
     row.update(emg)
-    row['label'] = window['label']
+
+    # ── NaN/inf handling (numeric feature values only) ────────────────────
+    feat_keys   = list(row.keys())
+    feature_row = np.array([row[k] for k in feat_keys], dtype=float)
+    nan_count   = int(np.isnan(feature_row).sum())
+    inf_count   = int(np.isinf(feature_row).sum())
+    if nan_count > 0 or inf_count > 0:
+        print(f"Window {i} (subject {window['subject_id']}): "
+              f"{nan_count} NaN, {inf_count} inf values replaced with 0.0")
+        windows_affected += 1
+        total_nan += nan_count
+        total_inf += inf_count
+    feature_row = np.nan_to_num(feature_row, nan=0.0, posinf=0.0, neginf=0.0)
+    for k, v in zip(feat_keys, feature_row):
+        row[k] = v
+
+    # Metadata columns — carried through, NOT model features
+    row['label']      = window['label']
+    row['subject_id'] = window['subject_id']
     feature_rows.append(row)
 
 print(f"\nSkipped {skipped} windows (too few R-peaks)")
 print(f"Final feature rows: {len(feature_rows)}")
 
+# ── NaN/inf SUMMARY ──────────────────────────────────────────────────────
+if feature_rows:
+    pct = windows_affected / len(feature_rows) * 100
+    print(f"\nNaN/inf cleanup: {windows_affected} of {len(feature_rows)} windows "
+          f"({pct:.1f}%) had values replaced with 0.0 "
+          f"— {total_nan} NaN and {total_inf} inf total")
+else:
+    print("\nNaN/inf cleanup: no feature rows produced")
+
 # ── SAVE FEATURES ────────────────────────────────────────────────────────
 df = pd.DataFrame(feature_rows)
 print(f"\nFeature matrix shape: {df.shape}")
-print(f"\nFeatures extracted ({len(df.columns)-1} total):")
-print([c for c in df.columns if c != 'label'])
+META_COLS = ['label', 'subject_id']   # carried through, not model features
+feature_cols = [c for c in df.columns if c not in META_COLS]
+print(f"\nFeatures extracted ({len(feature_cols)} total):")
+print(feature_cols)
 
 print(f"\nLabel distribution:")
 print(df['label'].value_counts().rename({0:'Baseline',1:'Stress',2:'Amusement'}))

@@ -75,7 +75,7 @@ print("  Saved plot 2")
 # PLOT 3: Correlation Heatmap
 print("Creating Plot 3: Correlation heatmap...")
 fig, ax = plt.subplots(figsize=(14, 11))
-corr = df.drop('label', axis=1).corr()
+corr = df.drop(['label', 'subject_id'], axis=1).corr()
 mask = np.triu(np.ones_like(corr, dtype=bool))
 sns.heatmap(corr, mask=mask, annot=False, cmap='coolwarm',
             center=0, square=True, linewidths=0.3, ax=ax)

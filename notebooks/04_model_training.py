@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.model_selection import LeaveOneGroupOut, cross_val_predict
 from sklearn.metrics import (accuracy_score, f1_score, classification_report,
                              confusion_matrix)
 from sklearn.svm import SVC
@@ -37,13 +37,18 @@ RANDOM_STATE = 42
 # ── LOAD FEATURES ─────────────────────────────────────────────────────────
 print("Loading features...")
 df = pd.read_csv(os.path.join(PROCESSED_PATH, "features.csv"))
-X  = df.drop('label', axis=1).values
+groups = df['subject_id'].values          # subject IDs for LOSO grouping — metadata, NOT a feature
+X  = df.drop(['label', 'subject_id'], axis=1).values
 y  = df['label'].values
 print(f"X shape: {X.shape}, y shape: {y.shape}")
+print(f"Subjects: {np.unique(groups)}")
 print(f"Classes: {np.unique(y, return_counts=True)}")
 
-# ── CROSS VALIDATION SETUP ────────────────────────────────────────────────
-cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+# ── CROSS VALIDATION SETUP (subject-aware) ────────────────────────────────
+# Leave-One-Subject-Out: train on N-1 subjects, test on the held-out subject.
+# This prevents windows from the same subject landing in both train and test,
+# which inflated accuracy under the old random StratifiedKFold split.
+cv = LeaveOneGroupOut()
 
 # ── DEFINE MODELS ─────────────────────────────────────────────────────────
 models = {
@@ -72,27 +77,39 @@ models = {
     ])
 }
 
-# ── TRAIN & EVALUATE ──────────────────────────────────────────────────────
+# ── TRAIN & EVALUATE (Leave-One-Subject-Out CV) ──────────────────────────
 results = {}
+subjects = sorted(np.unique(groups), key=lambda s: int(str(s)[1:]))
 
 for model_name, pipeline in models.items():
-    print(f"\nTraining {model_name}...")
+    print(f"\nTraining {model_name} (Leave-One-Subject-Out, {len(subjects)} folds)...")
 
-    # Cross-validated predictions
-    y_pred = cross_val_predict(pipeline, X, y, cv=cv, n_jobs=-1)
+    # Out-of-fold predictions: each window is predicted only when ITS subject
+    # is the held-out test fold. SMOTE runs inside each training fold only.
+    y_pred = cross_val_predict(pipeline, X, y, groups=groups, cv=cv, n_jobs=-1)
 
-    acc = accuracy_score(y, y_pred)
-    f1  = f1_score(y, y_pred, average='weighted')
+    # Per-subject accuracy = accuracy on the windows of the held-out subject
+    per_subject_acc = {s: accuracy_score(y[groups == s], y_pred[groups == s])
+                       for s in subjects}
+    subj_accs = np.array([per_subject_acc[s] for s in subjects])
+    mean_acc  = subj_accs.mean()
+    std_acc   = subj_accs.std()
+    f1        = f1_score(y, y_pred, average='weighted')
 
     results[model_name] = {
-        'accuracy': acc,
-        'f1_score': f1,
-        'y_pred':   y_pred
+        'accuracy':        mean_acc,   # mean per-subject accuracy — replaces old single-CV accuracy
+        'accuracy_std':    std_acc,
+        'per_subject_acc': per_subject_acc,
+        'f1_score':        f1,
+        'y_pred':          y_pred,
     }
 
-    print(f"  Accuracy : {acc*100:.2f}%")
-    print(f"  F1 Score : {f1*100:.2f}%")
-    print(f"\n  Classification Report:")
+    print(f"  Mean subject accuracy : {mean_acc*100:.2f}% ± {std_acc*100:.2f}% (std across subjects)")
+    print(f"  Weighted F1 (pooled)  : {f1*100:.2f}%")
+    print(f"  Per-subject accuracy:")
+    for s in subjects:
+        print(f"    {str(s):>4}: {per_subject_acc[s]*100:5.1f}%")
+    print(f"\n  Classification Report (pooled out-of-fold predictions):")
     print(classification_report(y, y_pred,
           target_names=list(LABEL_NAMES.values())))
 
@@ -109,13 +126,26 @@ joblib.dump(best_pipeline,
             os.path.join(MODELS_PATH, f"best_model_{best_model_name}.pkl"))
 print(f"Saved to models/best_model_{best_model_name}.pkl")
 
+# ── ALSO SAVE XGBoost AS THE DEPLOYED MODEL ───────────────────────────────
+# The comparison above stays honest (SVM may score higher), but XGBoost is the
+# model we actually deploy in app.py / fusion (faster inference, accuracy within
+# std of the best). Retrain it on the full dataset and save unconditionally so a
+# fresh LOSO-pipeline artifact always exists, regardless of which model "won".
+if best_model_name != 'XGBoost':
+    print("Retraining XGBoost on full dataset (deployed model)...")
+    xgb_pipeline = models['XGBoost']
+    xgb_pipeline.fit(X, y)
+    joblib.dump(xgb_pipeline,
+                os.path.join(MODELS_PATH, "best_model_XGBoost.pkl"))
+    print("Saved to models/best_model_XGBoost.pkl")
+
 # Also save scaler separately for frontend use
 scaler = StandardScaler()
 scaler.fit(X)
 joblib.dump(scaler, os.path.join(MODELS_PATH, "scaler.pkl"))
 
-# Save feature names
-feature_names = df.drop('label', axis=1).columns.tolist()
+# Save feature names (metadata columns excluded — model sees features only)
+feature_names = df.drop(['label', 'subject_id'], axis=1).columns.tolist()
 joblib.dump(feature_names, os.path.join(MODELS_PATH, "feature_names.pkl"))
 print("Saved scaler and feature names")
 
@@ -130,13 +160,13 @@ for ax, (model_name, res) in zip(axes, results.items()):
                 xticklabels=list(LABEL_NAMES.values()),
                 yticklabels=list(LABEL_NAMES.values()),
                 ax=ax, cbar=False)
-    ax.set_title(f'{model_name}\nAcc={res["accuracy"]*100:.1f}%  '
+    ax.set_title(f'{model_name}\nAcc={res["accuracy"]*100:.1f}±{res["accuracy_std"]*100:.1f}%  '
                  f'F1={res["f1_score"]*100:.1f}%',
                  fontweight='bold')
     ax.set_xlabel('Predicted')
     ax.set_ylabel('Actual')
 
-fig.suptitle('Confusion Matrices (5-Fold Cross Validation) — % of Actual',
+fig.suptitle('Confusion Matrices (Leave-One-Subject-Out CV) — % of Actual',
              fontsize=13, fontweight='bold')
 plt.tight_layout()
 plt.savefig(os.path.join(PLOTS_PATH, "06_confusion_matrices.png"), dpi=150)
@@ -147,13 +177,16 @@ print("  Saved: 06_confusion_matrices.png")
 print("Generating model comparison plot...")
 fig, ax = plt.subplots(figsize=(9, 5))
 model_names = list(results.keys())
-accs = [results[m]['accuracy']*100 for m in model_names]
-f1s  = [results[m]['f1_score']*100  for m in model_names]
+accs      = [results[m]['accuracy']*100     for m in model_names]
+acc_stds  = [results[m]['accuracy_std']*100 for m in model_names]
+f1s       = [results[m]['f1_score']*100     for m in model_names]
 x    = np.arange(len(model_names))
 w    = 0.35
 
-bars1 = ax.bar(x - w/2, accs, w, label='Accuracy',
-               color='#42A5F5', edgecolor='black')
+# Accuracy bars carry error bars showing per-subject std (LOSO variance)
+bars1 = ax.bar(x - w/2, accs, w, label='Mean Subject Accuracy',
+               color='#42A5F5', edgecolor='black',
+               yerr=acc_stds, capsize=4)
 bars2 = ax.bar(x + w/2, f1s,  w, label='F1 Score',
                color='#EF5350', edgecolor='black')
 
@@ -167,7 +200,7 @@ ax.set_xticks(x)
 ax.set_xticklabels(model_names, fontsize=11)
 ax.set_ylim(0, 110)
 ax.set_ylabel('Score (%)')
-ax.set_title('Model Comparison — Accuracy & F1 Score\n(5-Fold Stratified CV + SMOTE)',
+ax.set_title('Model Comparison — Accuracy & F1 Score\n(Leave-One-Subject-Out CV + SMOTE)',
              fontweight='bold')
 ax.legend()
 ax.grid(axis='y', alpha=0.3)

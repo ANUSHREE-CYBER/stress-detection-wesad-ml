@@ -27,7 +27,7 @@ COLORS      = {0: '#2196F3', 1: '#F44336', 2: '#4CAF50'}
 
 print("Loading features...")
 df      = pd.read_csv(os.path.join(PROCESSED_PATH, "features.csv"))
-X       = df.drop('label', axis=1).values
+X       = df.drop(['label', 'subject_id'], axis=1).values
 y       = df['label'].values
 scaler  = StandardScaler()
 X_scaled = scaler.fit_transform(X)
