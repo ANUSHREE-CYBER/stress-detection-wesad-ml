@@ -1,18 +1,23 @@
 ﻿import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
+from pathlib import Path
 from scipy.stats import skew, kurtosis
 import warnings
 warnings.filterwarnings('ignore')
 
 print("Starting visualization...")
 
-PROCESSED_PATH = r"D:\STRESS DETECTION\data\processed"
-OUTPUT_PATH    = r"D:\STRESS DETECTION\data\processed\plots"
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.config import DATA_DIR, PLOTS_DIR
+
+PROCESSED_PATH = DATA_DIR
+OUTPUT_PATH    = PLOTS_DIR
 os.makedirs(OUTPUT_PATH, exist_ok=True)
 
 LABEL_NAMES = {0: 'Baseline', 1: 'Stress', 2: 'Amusement'}

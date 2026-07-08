@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -11,13 +12,17 @@ from torchvision import models, transforms
 from sklearn.metrics import confusion_matrix, classification_report
 import seaborn as sns
 import joblib
+from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.config import DATA_DIR, MODELS_DIR, PLOTS_DIR
+
 # ── CONFIG ───────────────────────────────────────────────────────────────
-PROCESSED_PATH = r"D:\STRESS DETECTION\data\processed"
-MODELS_PATH    = r"D:\STRESS DETECTION\models"
-PLOTS_PATH     = r"D:\STRESS DETECTION\data\processed\plots"
+PROCESSED_PATH = DATA_DIR
+MODELS_PATH    = MODELS_DIR
+PLOTS_PATH     = PLOTS_DIR
 DEVICE         = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE     = 64
 EPOCHS         = 15

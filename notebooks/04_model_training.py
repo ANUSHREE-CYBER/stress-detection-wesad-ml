@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -6,6 +7,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
+from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -19,10 +21,13 @@ from xgboost import XGBClassifier
 from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline as ImbPipeline
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.config import DATA_DIR, MODELS_DIR, PLOTS_DIR
+
 # ── CONFIG ───────────────────────────────────────────────────────────────
-PROCESSED_PATH = r"D:\STRESS DETECTION\data\processed"
-MODELS_PATH    = r"D:\STRESS DETECTION\models"
-PLOTS_PATH     = r"D:\STRESS DETECTION\data\processed\plots"
+PROCESSED_PATH = DATA_DIR
+MODELS_PATH    = MODELS_DIR
+PLOTS_PATH     = PLOTS_DIR
 os.makedirs(MODELS_PATH, exist_ok=True)
 
 LABEL_NAMES = {0: 'Baseline', 1: 'Stress', 2: 'Amusement'}

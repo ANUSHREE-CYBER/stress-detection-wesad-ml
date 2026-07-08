@@ -1,7 +1,12 @@
+import sys
 import pickle
 import numpy as np
+from pathlib import Path
 
-path = r"D:\WESAD Dataset\WESAD\S2\S2.pkl"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from src.config import WESAD_DIR
+
+path = WESAD_DIR / "S2" / "S2.pkl"
 
 with open(path, "rb") as f:
     data = pickle.load(f, encoding="latin1")

@@ -29,10 +29,13 @@ st.set_page_config(
 )
 
 # ── PATHS ─────────────────────────────────────────────────────────────────
-BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODELS_PATH = os.path.join(BASE_DIR, "models")
-PLOTS_PATH  = os.path.join(BASE_DIR, "data", "processed", "plots")
-DATA_PATH   = os.path.join(BASE_DIR, "data", "processed")
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.config import MODELS_DIR, PLOTS_DIR, DATA_DIR
+
+MODELS_PATH = str(MODELS_DIR)
+PLOTS_PATH  = str(PLOTS_DIR)
+DATA_PATH   = str(DATA_DIR)
 DEVICE      = torch.device("cpu") if TORCH_AVAILABLE else None
 
 # ── CONSTANTS ─────────────────────────────────────────────────────────────

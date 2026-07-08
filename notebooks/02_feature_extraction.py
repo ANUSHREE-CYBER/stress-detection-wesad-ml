@@ -1,13 +1,18 @@
 import os
+import sys
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from scipy.signal import find_peaks
 from scipy.stats import skew, kurtosis
 import warnings
 warnings.filterwarnings('ignore')
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.config import DATA_DIR
+
 # ── CONFIG ──────────────────────────────────────────────────────────────
-PROCESSED_PATH = r"D:\STRESS DETECTION\data\processed"
+PROCESSED_PATH = DATA_DIR
 FS = 700  # Hz
 
 # ── LOAD WINDOWS ─────────────────────────────────────────────────────────

@@ -1,10 +1,12 @@
 import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
+from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
@@ -13,8 +15,11 @@ from sklearn.metrics import silhouette_score
 import warnings
 warnings.filterwarnings('ignore')
 
-PROCESSED_PATH = r"D:\STRESS DETECTION\data\processed"
-PLOTS_PATH     = r"D:\STRESS DETECTION\data\processed\plots"
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.config import DATA_DIR, PLOTS_DIR
+
+PROCESSED_PATH = DATA_DIR
+PLOTS_PATH     = PLOTS_DIR
 os.makedirs(PLOTS_PATH, exist_ok=True)
 
 LABEL_NAMES = {0: 'Baseline', 1: 'Stress', 2: 'Amusement'}

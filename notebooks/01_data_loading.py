@@ -1,12 +1,17 @@
 import os
+import sys
 import pickle
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from scipy.signal import butter, filtfilt
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.config import DATA_DIR, WESAD_DIR
+
 # ── CONFIG ──────────────────────────────────────────────────────────────
-DATASET_PATH  = r"D:\WESAD Dataset\WESAD"
-OUTPUT_PATH   = r"D:\STRESS DETECTION\data\processed"
+DATASET_PATH  = WESAD_DIR
+OUTPUT_PATH   = DATA_DIR
 SUBJECTS      = ['S2','S3','S4','S5','S6','S7','S8','S9',
                  'S10','S11','S13','S14','S15','S16','S17']
 KEEP_LABELS   = {1: 0, 2: 1, 3: 2}   # baseline=0, stress=1, amusement=2

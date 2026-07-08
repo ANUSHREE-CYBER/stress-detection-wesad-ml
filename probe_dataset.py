@@ -1,8 +1,13 @@
 import os
+import sys
 import pickle
 import numpy as np
+from pathlib import Path
 
-dataset_path = r"D:\WESAD Dataset\WESAD"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from src.config import WESAD_DIR
+
+dataset_path = WESAD_DIR
 
 print("=== FILES FOUND ===")
 for root, dirs, files in os.walk(dataset_path):

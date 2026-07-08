@@ -1,18 +1,23 @@
 import os
+import sys
 import numpy as np
 from PIL import Image
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from pathlib import Path
 from collections import defaultdict
 import warnings
 warnings.filterwarnings('ignore')
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.config import DATA_DIR, PLOTS_DIR, FER2013_DIR
+
 # ── CONFIG ───────────────────────────────────────────────────────────────
-TRAIN_PATH     = r"D:\WESAD Dataset\FER2013\train"
-TEST_PATH      = r"D:\WESAD Dataset\FER2013\test"
-OUTPUT_PATH    = r"D:\STRESS DETECTION\data\processed"
-PLOTS_PATH     = r"D:\STRESS DETECTION\data\processed\plots"
+TRAIN_PATH     = FER2013_DIR / "train"
+TEST_PATH      = FER2013_DIR / "test"
+OUTPUT_PATH    = DATA_DIR
+PLOTS_PATH     = PLOTS_DIR
 IMG_SIZE       = 48
 
 # Emotion → Stress label mapping
