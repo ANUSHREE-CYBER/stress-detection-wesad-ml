@@ -426,7 +426,14 @@ elif page == "📸 Face Stress Detection":
 # ══════════════════════════════════════════════════════════════════════════
 elif page == "🔀 Fusion Predict":
     st.title("🔀 Multimodal Fusion Prediction")
-    st.markdown("Combine biosignal features + face image for the most accurate prediction.")
+    st.markdown("Run both models on a live input and combine their predictions "
+                "using fixed heuristic weights — a proof-of-concept for "
+                "multimodal deployment (e.g. wearable + webcam).")
+    st.caption("Note: fusion here is a live weighted combination of two "
+               "independent predictions, not a separately trained or "
+               "benchmarked model. WESAD and FER2013 share no subjects, so "
+               "there is no paired ground truth to measure a fusion accuracy "
+               "against — none is claimed.")
     st.markdown("---")
 
     if not TORCH_AVAILABLE:
@@ -434,7 +441,7 @@ elif page == "🔀 Fusion Predict":
 
     xgb_w = fusion_config['xgb_weight'] if fusion_config else 0.6
     cnn_w = fusion_config['cnn_weight'] if fusion_config else 0.4
-    st.info(f"**Fusion weights:** XGBoost × {xgb_w} + CNN × {cnn_w}")
+    st.info(f"**Fixed heuristic weights:** biosignal (XGBoost) × {xgb_w} + facial (CNN) × {cnn_w}")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -569,16 +576,22 @@ elif page == "📊 Model Results":
 
     with tab3:
         col1, col2, col3 = st.columns(3)
-        col1.metric("XGBoost Weight", f"{fusion_config['xgb_weight']}" if fusion_config else "0.6")
-        col2.metric("CNN Weight",     f"{fusion_config['cnn_weight']}"  if fusion_config else "0.4")
-        col3.metric("Architecture",   "Weighted Average")
-        for fname, caption in [
-            ("15_fusion_weights.png",        "Fusion Weight Analysis"),
-            ("16_final_model_comparison.png", "Final Model Comparison"),
-        ]:
-            p = os.path.join(PLOTS_PATH, fname)
-            if os.path.exists(p):
-                st.image(p, caption=caption, use_container_width=True)
+        col1.metric("Biosignal Weight (XGBoost)", f"{fusion_config['xgb_weight']}" if fusion_config else "0.6")
+        col2.metric("Facial Weight (CNN)",        f"{fusion_config['cnn_weight']}"  if fusion_config else "0.4")
+        col3.metric("Method", "Fixed heuristic")
+        st.info(
+            "Fusion combines the two models' **live** class probabilities using "
+            "**fixed, heuristic weights** — it is not a trained or benchmarked "
+            "model, and no fusion accuracy is reported. WESAD (biosignals) and "
+            "FER2013 (faces) share no subjects, so there is no paired "
+            "ground-truth data on which a fusion accuracy could be measured. "
+            "Fusion is offered as a live multimodal proof-of-concept "
+            "(e.g. wearable + webcam) — try it on the **🔀 Fusion Predict** page."
+        )
+        st.caption("Weights are set in notebooks/08_fusion.py and loaded from "
+                   "fusion_config.pkl. Biosignal is weighted higher because it "
+                   "is the stronger, more direct stress signal (see 08_fusion.py "
+                   "for the full rationale).")
 
 # ══════════════════════════════════════════════════════════════════════════
 # PAGE 6: VISUALIZATIONS
@@ -604,11 +617,9 @@ elif page == "📈 Visualizations":
         "13b — CNN Fine-tuning Curves"          : "13b_cnn_finetuning_curves.png",
         "14 — CNN Initial Confusion Matrix"     : "14_cnn_confusion_matrix.png",
         "14b — CNN Fine-tuned Confusion Matrix" : "14b_cnn_finetuned_confusion.png",
-        "15 — Fusion Weight Analysis"           : "15_fusion_weights.png",
-        "16 — Final Model Comparison"           : "16_final_model_comparison.png",
     }
 
-    selected_plot = st.selectbox("Select Visualization (18 total)",
+    selected_plot = st.selectbox(f"Select Visualization ({len(plot_files)} total)",
                                   list(plot_files.keys()))
     plot_path = os.path.join(PLOTS_PATH, plot_files[selected_plot])
     if os.path.exists(plot_path):
