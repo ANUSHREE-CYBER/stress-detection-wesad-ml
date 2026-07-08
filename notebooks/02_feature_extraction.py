@@ -10,6 +10,7 @@ warnings.filterwarnings('ignore')
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import DATA_DIR
+from src.constants import LABEL_NAMES, META_COLS
 
 # ── CONFIG ──────────────────────────────────────────────────────────────
 PROCESSED_PATH = DATA_DIR
@@ -159,13 +160,12 @@ else:
 # ── SAVE FEATURES ────────────────────────────────────────────────────────
 df = pd.DataFrame(feature_rows)
 print(f"\nFeature matrix shape: {df.shape}")
-META_COLS = ['label', 'subject_id']   # carried through, not model features
 feature_cols = [c for c in df.columns if c not in META_COLS]
 print(f"\nFeatures extracted ({len(feature_cols)} total):")
 print(feature_cols)
 
 print(f"\nLabel distribution:")
-print(df['label'].value_counts().rename({0:'Baseline',1:'Stress',2:'Amusement'}))
+print(df['label'].value_counts().rename(LABEL_NAMES))
 
 output_csv = os.path.join(PROCESSED_PATH, "features.csv")
 df.to_csv(output_csv, index=False)

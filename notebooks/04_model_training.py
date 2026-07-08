@@ -1,11 +1,9 @@
 import os
 import sys
 import numpy as np
-import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import seaborn as sns
 import joblib
 from pathlib import Path
 import warnings
@@ -13,8 +11,7 @@ warnings.filterwarnings('ignore')
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import LeaveOneGroupOut, cross_val_predict
-from sklearn.metrics import (accuracy_score, f1_score, classification_report,
-                             confusion_matrix)
+from sklearn.metrics import accuracy_score, f1_score, classification_report
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from xgboost import XGBClassifier
@@ -23,6 +20,9 @@ from imblearn.pipeline import Pipeline as ImbPipeline
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import DATA_DIR, MODELS_DIR, PLOTS_DIR
+from src.constants import LABEL_NAMES_LIST, RANDOM_STATE
+from src.data_utils import load_features
+from src.plotting import plot_confusion_matrix
 
 # ── CONFIG ───────────────────────────────────────────────────────────────
 PROCESSED_PATH = DATA_DIR
@@ -30,16 +30,9 @@ MODELS_PATH    = MODELS_DIR
 PLOTS_PATH     = PLOTS_DIR
 os.makedirs(MODELS_PATH, exist_ok=True)
 
-LABEL_NAMES = {0: 'Baseline', 1: 'Stress', 2: 'Amusement'}
-COLORS      = ['#2196F3', '#F44336', '#4CAF50']
-RANDOM_STATE = 42
-
 # ── LOAD FEATURES ─────────────────────────────────────────────────────────
 print("Loading features...")
-df = pd.read_csv(os.path.join(PROCESSED_PATH, "features.csv"))
-groups = df['subject_id'].values          # subject IDs for LOSO grouping — metadata, NOT a feature
-X  = df.drop(['label', 'subject_id'], axis=1).values
-y  = df['label'].values
+X, y, groups, feature_names = load_features(PROCESSED_PATH)
 print(f"X shape: {X.shape}, y shape: {y.shape}")
 print(f"Subjects: {np.unique(groups)}")
 print(f"Classes: {np.unique(y, return_counts=True)}")
@@ -111,7 +104,7 @@ for model_name, pipeline in models.items():
         print(f"    {str(s):>4}: {per_subject_acc[s]*100:5.1f}%")
     print(f"\n  Classification Report (pooled out-of-fold predictions):")
     print(classification_report(y, y_pred,
-          target_names=list(LABEL_NAMES.values())))
+          target_names=LABEL_NAMES_LIST))
 
 # ── SAVE BEST MODEL ───────────────────────────────────────────────────────
 best_model_name = max(results, key=lambda k: results[k]['f1_score'])
@@ -145,7 +138,6 @@ scaler.fit(X)
 joblib.dump(scaler, os.path.join(MODELS_PATH, "scaler.pkl"))
 
 # Save feature names (metadata columns excluded — model sees features only)
-feature_names = df.drop(['label', 'subject_id'], axis=1).columns.tolist()
 joblib.dump(feature_names, os.path.join(MODELS_PATH, "feature_names.pkl"))
 print("Saved scaler and feature names")
 
@@ -154,17 +146,10 @@ print("\nGenerating confusion matrix plots...")
 fig, axes = plt.subplots(1, 3, figsize=(16, 5))
 
 for ax, (model_name, res) in zip(axes, results.items()):
-    cm = confusion_matrix(y, res['y_pred'])
-    cm_pct = cm.astype(float) / cm.sum(axis=1, keepdims=True) * 100
-    sns.heatmap(cm_pct, annot=True, fmt='.1f', cmap='Blues',
-                xticklabels=list(LABEL_NAMES.values()),
-                yticklabels=list(LABEL_NAMES.values()),
-                ax=ax, cbar=False)
+    plot_confusion_matrix(ax, y, res['y_pred'], LABEL_NAMES_LIST, cbar=False)
     ax.set_title(f'{model_name}\nAcc={res["accuracy"]*100:.1f}±{res["accuracy_std"]*100:.1f}%  '
                  f'F1={res["f1_score"]*100:.1f}%',
                  fontweight='bold')
-    ax.set_xlabel('Predicted')
-    ax.set_ylabel('Actual')
 
 fig.suptitle('Confusion Matrices (Leave-One-Subject-Out CV) — % of Actual',
              fontsize=13, fontweight='bold')

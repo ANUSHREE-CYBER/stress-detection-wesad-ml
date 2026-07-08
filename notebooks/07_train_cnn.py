@@ -16,6 +16,8 @@ warnings.filterwarnings('ignore')
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import DATA_DIR, MODELS_DIR, PLOTS_DIR
+from src.constants import LABEL_NAMES_LIST, RANDOM_STATE
+from src.plotting import plot_confusion_matrix
 
 # ── CONFIG ───────────────────────────────────────────────────────────────
 PROCESSED_PATH = DATA_DIR
@@ -26,7 +28,6 @@ BATCH_SIZE     = 64
 EPOCHS         = 20
 LR             = 0.001
 NUM_CLASSES    = 3
-RANDOM_STATE   = 42
 
 torch.manual_seed(RANDOM_STATE)
 print(f"Using device: {DEVICE}")
@@ -230,8 +231,7 @@ print("  Saved: 13_cnn_training_curves.png")
 
 # ── PLOT: Confusion matrix ────────────────────────────────────────────────
 print("Generating CNN confusion matrix...")
-from sklearn.metrics import confusion_matrix, classification_report
-import seaborn as sns
+from sklearn.metrics import classification_report
 
 model.eval()
 all_preds, all_labels = [], []
@@ -244,18 +244,10 @@ with torch.no_grad():
         all_preds.extend(predicted.cpu().numpy())
         all_labels.extend(labels.numpy())
 
-LABEL_NAMES = ['Baseline', 'Stress', 'Amusement']
-cm = confusion_matrix(all_labels, all_preds)
-cm_pct = cm.astype(float) / cm.sum(axis=1, keepdims=True) * 100
-
 fig, ax = plt.subplots(figsize=(7, 6))
-sns.heatmap(cm_pct, annot=True, fmt='.1f', cmap='Blues',
-            xticklabels=LABEL_NAMES,
-            yticklabels=LABEL_NAMES, ax=ax)
+plot_confusion_matrix(ax, all_labels, all_preds, LABEL_NAMES_LIST)
 ax.set_title(f'CNN Confusion Matrix  (Test Acc: {best_acc:.2f}%)',
              fontweight='bold')
-ax.set_xlabel('Predicted')
-ax.set_ylabel('Actual')
 plt.tight_layout()
 plt.savefig(os.path.join(PLOTS_PATH, "14_cnn_confusion_matrix.png"), dpi=150)
 plt.close()
@@ -263,5 +255,5 @@ print("  Saved: 14_cnn_confusion_matrix.png")
 
 print("\nClassification Report:")
 print(classification_report(all_labels, all_preds,
-      target_names=LABEL_NAMES))
+      target_names=LABEL_NAMES_LIST))
 print("\n✅ CNN Training complete!")

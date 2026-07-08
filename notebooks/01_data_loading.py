@@ -8,6 +8,7 @@ from scipy.signal import butter, filtfilt
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import DATA_DIR, WESAD_DIR
+from src.constants import LABEL_NAMES
 
 # ── CONFIG ──────────────────────────────────────────────────────────────
 DATASET_PATH  = WESAD_DIR
@@ -96,10 +97,9 @@ for subj in SUBJECTS:
 print(f"\nTotal windows across all subjects: {len(all_windows)}")
 
 # ── LABEL DISTRIBUTION ───────────────────────────────────────────────────
-label_names = {0: 'Baseline', 1: 'Stress', 2: 'Amusement'}
 all_labels  = [w['label'] for w in all_windows]
 print("\nLabel distribution:")
-for lbl, name in label_names.items():
+for lbl, name in LABEL_NAMES.items():
     count = all_labels.count(lbl)
     print(f"  {name}: {count} windows ({count/len(all_labels)*100:.1f}%)")
 

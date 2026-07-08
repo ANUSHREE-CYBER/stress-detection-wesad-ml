@@ -9,8 +9,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import models, transforms
-from sklearn.metrics import confusion_matrix, classification_report
-import seaborn as sns
+from sklearn.metrics import classification_report
 import joblib
 from pathlib import Path
 import warnings
@@ -18,6 +17,8 @@ warnings.filterwarnings('ignore')
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import DATA_DIR, MODELS_DIR, PLOTS_DIR
+from src.constants import LABEL_NAMES_LIST
+from src.plotting import plot_confusion_matrix
 
 # ── CONFIG ───────────────────────────────────────────────────────────────
 PROCESSED_PATH = DATA_DIR
@@ -202,15 +203,10 @@ with torch.no_grad():
         all_preds.extend(pred.cpu().numpy())
         all_labels.extend(lbls.numpy())
 
-cm     = confusion_matrix(all_labels, all_preds)
-cm_pct = cm.astype(float) / cm.sum(axis=1, keepdims=True) * 100
 fig, ax = plt.subplots(figsize=(7, 6))
-sns.heatmap(cm_pct, annot=True, fmt='.1f', cmap='Blues',
-            xticklabels=['Baseline','Stress','Amusement'],
-            yticklabels=['Baseline','Stress','Amusement'], ax=ax)
+plot_confusion_matrix(ax, all_labels, all_preds, LABEL_NAMES_LIST)
 ax.set_title(f'CNN Confusion Matrix — Fine-tuned ({best_acc:.2f}%)',
              fontweight='bold')
-ax.set_xlabel('Predicted'); ax.set_ylabel('Actual')
 plt.tight_layout()
 plt.savefig(os.path.join(PLOTS_PATH, "14b_cnn_finetuned_confusion.png"), dpi=150)
 plt.close()
@@ -218,5 +214,5 @@ print("Saved: 14b_cnn_finetuned_confusion.png")
 
 print("\nClassification Report:")
 print(classification_report(all_labels, all_preds,
-      target_names=['Baseline','Stress','Amusement']))
+      target_names=LABEL_NAMES_LIST))
 print("\n✅ Fine-tuning complete!")

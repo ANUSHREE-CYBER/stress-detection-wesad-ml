@@ -12,6 +12,7 @@ warnings.filterwarnings('ignore')
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import DATA_DIR, PLOTS_DIR, FER2013_DIR
+from src.constants import LABEL_NAMES, CLASS_COLORS as COLORS
 
 # ── CONFIG ───────────────────────────────────────────────────────────────
 TRAIN_PATH     = FER2013_DIR / "train"
@@ -31,7 +32,6 @@ EMOTION_MAP = {
     'sad'     : 0,   # Baseline
     'surprise': 2,   # Amusement
 }
-LABEL_NAMES = {0: 'Baseline', 1: 'Stress', 2: 'Amusement'}
 
 # ── LOAD IMAGES ───────────────────────────────────────────────────────────
 def load_images(base_path, split_name):
@@ -99,7 +99,6 @@ print(f"Saved to {OUTPUT_PATH}")
 # ── PLOT: Sample images per class ────────────────────────────────────────
 print("\nGenerating sample image plot...")
 fig, axes = plt.subplots(3, 5, figsize=(14, 9))
-COLORS = {0: '#2196F3', 1: '#F44336', 2: '#4CAF50'}
 
 for row, (lbl, name) in enumerate(LABEL_NAMES.items()):
     indices = np.where(y_train == lbl)[0][:5]

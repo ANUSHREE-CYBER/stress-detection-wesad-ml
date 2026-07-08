@@ -1,11 +1,9 @@
 import os
 import sys
 import numpy as np
-import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import seaborn as sns
 from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
@@ -17,18 +15,15 @@ warnings.filterwarnings('ignore')
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import DATA_DIR, PLOTS_DIR
+from src.constants import LABEL_NAMES, CLASS_COLORS as COLORS, RANDOM_STATE
+from src.data_utils import load_features
 
 PROCESSED_PATH = DATA_DIR
 PLOTS_PATH     = PLOTS_DIR
 os.makedirs(PLOTS_PATH, exist_ok=True)
 
-LABEL_NAMES = {0: 'Baseline', 1: 'Stress', 2: 'Amusement'}
-COLORS      = {0: '#2196F3', 1: '#F44336', 2: '#4CAF50'}
-
 print("Loading features...")
-df      = pd.read_csv(os.path.join(PROCESSED_PATH, "features.csv"))
-X       = df.drop(['label', 'subject_id'], axis=1).values
-y       = df['label'].values
+X, y, groups, feature_names = load_features(PROCESSED_PATH)
 scaler  = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 print(f"Shape: {X_scaled.shape}")
@@ -40,7 +35,7 @@ sil_scores  = []
 k_range     = range(2, 9)
 
 for k in k_range:
-    km = KMeans(n_clusters=k, random_state=42, n_init=10)
+    km = KMeans(n_clusters=k, random_state=RANDOM_STATE, n_init=10)
     km.fit(X_scaled)
     inertias.append(km.inertia_)
     sil_scores.append(silhouette_score(X_scaled, km.labels_))
@@ -71,12 +66,12 @@ print("  Saved: 08_elbow_method.png")
 
 # ── K-MEANS WITH k=3 ─────────────────────────────────────────────────────
 print("\nRunning K-Means with k=3...")
-km3 = KMeans(n_clusters=3, random_state=42, n_init=10)
+km3 = KMeans(n_clusters=3, random_state=RANDOM_STATE, n_init=10)
 cluster_labels = km3.fit_predict(X_scaled)
 
 # ── PCA VISUALIZATION ─────────────────────────────────────────────────────
 print("Running PCA...")
-pca    = PCA(n_components=2, random_state=42)
+pca    = PCA(n_components=2, random_state=RANDOM_STATE)
 X_pca  = pca.fit_transform(X_scaled)
 var_explained = pca.explained_variance_ratio_ * 100
 
@@ -114,7 +109,7 @@ print("  Saved: 09_pca_visualization.png")
 
 # ── t-SNE VISUALIZATION ───────────────────────────────────────────────────
 print("Running t-SNE (this takes ~1-2 minutes)...")
-tsne   = TSNE(n_components=2, perplexity=30, random_state=42, max_iter=1000)
+tsne   = TSNE(n_components=2, perplexity=30, random_state=RANDOM_STATE, max_iter=1000)
 X_tsne = tsne.fit_transform(X_scaled)
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))

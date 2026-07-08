@@ -48,9 +48,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import MODELS_DIR
+from src.constants import LABEL_NAMES_LIST
 
 MODELS_PATH = MODELS_DIR
-LABEL_NAMES = ['Baseline', 'Stress', 'Amusement']
 
 # ── FIXED FUSION WEIGHTS ──────────────────────────────────────────────────
 XGB_WEIGHT = 0.6   # biosignal (XGBoost)  — stronger + more direct stress signal
@@ -94,7 +94,7 @@ examples = [
 ]
 for desc, bio, face in examples:
     fused = fuse(bio, face)
-    pred  = LABEL_NAMES[int(np.argmax(fused))]
+    pred  = LABEL_NAMES_LIST[int(np.argmax(fused))]
     print(f"\n  {desc}")
     print(f"    biosignal probs      : {np.round(bio,   2)}")
     print(f"    facial probs         : {np.round(face,  2)}")

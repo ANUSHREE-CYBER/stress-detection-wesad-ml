@@ -15,13 +15,11 @@ print("Starting visualization...")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import DATA_DIR, PLOTS_DIR
+from src.constants import LABEL_NAMES, CLASS_COLORS as COLORS
 
 PROCESSED_PATH = DATA_DIR
 OUTPUT_PATH    = PLOTS_DIR
 os.makedirs(OUTPUT_PATH, exist_ok=True)
-
-LABEL_NAMES = {0: 'Baseline', 1: 'Stress', 2: 'Amusement'}
-COLORS      = {0: '#2196F3', 1: '#F44336', 2: '#4CAF50'}
 
 print("Loading features CSV...")
 df = pd.read_csv(os.path.join(PROCESSED_PATH, "features.csv"))
